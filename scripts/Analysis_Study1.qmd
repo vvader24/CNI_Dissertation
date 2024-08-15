@@ -329,17 +329,13 @@ data1 <- all_data1 %>%
       .names = "{str_remove(.col, '[.].*')}.comm"
     )
   )
-
-#names(data1)
-
 #Cognitive CNI-data [ips.Cognitive items + sc_swb + sc_pty.indv + sc_pty.comm]
 #Personality CNI-data [ips.Personality items + sc_swb + sc_pty.indv + sc_pty.comm]
 ```
 
 ### Table 1: Descriptives
 
-@tbl-descriptive indicates that China has the largest while Chile has the smallest sample size in this data. 
-
+@tbl-descriptive indicates that China has the largest while Chile has the smallest sample size in this data.
 
 ```{r DescriptiveTable}
 #| label: tbl-descriptive
@@ -358,14 +354,11 @@ data1 %>%
 
 ## Measurement Invariance - swb
 
-Measurement invariance was assessed for testing cross-cultural comparability of the 5-item Life Satisfaction scale measuring subjective well-being, across eight nations in Study 1. A series of increasingly constrained multi-group confirmatory factor analysis models were  employed to evaluate configural, metric, scalar, and strict invariance.
+Measurement invariance was assessed for testing cross-cultural comparability of the 5-item Life Satisfaction scale measuring subjective well-being, across eight nations in Study 1. A series of increasingly constrained multi-group confirmatory factor analysis models were employed to evaluate configural, metric, scalar, and strict invariance.
 
-The configural invariance model, which tests for similarity in factor structure (pattern of zero and non-zero loadings) across groups showed acceptable fit (CFI = 0.944, TLI = 0.889, RMSEA = 0.130 [90% CI: 0.114, 0.146], SRMR = 0.0413). This suggests that the basic factor structure of the subjective well-being scale is similar across the eight nations.
+The configural invariance model, which tests for similarity in factor structure (pattern of zero and non-zero loadings) across groups showed acceptable fit (CFI = 0.944, TLI = 0.889, RMSEA = 0.130 \[90% CI: 0.114, 0.146\], SRMR = 0.0413). This suggests that the basic factor structure of the subjective well-being scale is similar across the eight nations.
 
-The metric invariance model, which constrains factor loadings to be equal across groups, demonstrated a slight decrease in fit (CFI = 0.921, TLI = 0.907, RMSEA = 0.119 [90% CI: 0.107, 0.130], SRMR = 0.0753). The change in CFI (ΔCFI = 0.023) exceeds the recommended threshold of 0.01, indicating potential issues with metric invariance.
-The scalar invariance model, which additionally constrains item intercepts to be equal across groups, showed a substantial decrease in fit (CFI = 0.781, TLI = 0.817, RMSEA = 0.166 [90% CI: 0.156, 0.176], SRMR = 0.130). The large drop in CFI (ΔCFI = 0.140) suggests that scalar invariance is not supported.
-Finally, the strict invariance model, which also constrains residual variances to be equal across groups, exhibited a further decline in fit (CFI = 0.544, TLI = 0.722, RMSEA = 0.205 [90% CI: 0.197, 0.214], SRMR = 0.164), indicating that strict invariance is not tenable.
-In summary, while the subjective well-being scale demonstrates configural invariance across the eight nations, there is evidence of non-invariance at the metric, scalar, and strict levels. These results suggest that while the basic structure of the scale is similar across cultures, there may be differences in the strength of item-factor relationships, item intercepts, and item residuals across nations. Caution should be exercised when making direct comparisons of subjective well-being scores across these diverse cultural contexts, and further investigation into the sources of non-invariance is warranted..
+The metric invariance model, which constrains factor loadings to be equal across groups, demonstrated a slight decrease in fit (CFI = 0.921, TLI = 0.907, RMSEA = 0.119 \[90% CI: 0.107, 0.130\], SRMR = 0.0753). The change in CFI (ΔCFI = 0.023) exceeds the recommended threshold of 0.01, indicating potential issues with metric invariance. The scalar invariance model, which additionally constrains item intercepts to be equal across groups, showed a substantial decrease in fit (CFI = 0.781, TLI = 0.817, RMSEA = 0.166 \[90% CI: 0.156, 0.176\], SRMR = 0.130). The large drop in CFI (ΔCFI = 0.140) suggests that scalar invariance is not supported. Finally, the strict invariance model, which also constrains residual variances to be equal across groups, exhibited a further decline in fit (CFI = 0.544, TLI = 0.722, RMSEA = 0.205 \[90% CI: 0.197, 0.214\], SRMR = 0.164), indicating that strict invariance is not tenable. In summary, while the subjective well-being scale demonstrates configural invariance across the eight nations, there is evidence of non-invariance at the metric, scalar, and strict levels. These results suggest that while the basic structure of the scale is similar across cultures, there may be differences in the strength of item-factor relationships, item intercepts, and item residuals across nations. Caution should be exercised when making direct comparisons of subjective well-being scores across these diverse cultural contexts, and further investigation into the sources of non-invariance is warranted..
 
 ```{r MeasurementInvariance}
 swb_MI.data <- data1 %>% 
@@ -502,16 +495,13 @@ kable(format = "latex",
 
 CNI is estimated using a random slope multilevel model (fixed intercepts; as the self and country responses have been ipsatized or standardized, the mean or the b0 will be zero) wherein the items nested within person. The ipsatization allows for the estimated slopes to be interpreted as correlation coefficients estimates.
 
-Computing three types of CNI: 
-- cogCNI: cognitive variables
-- pty6CNI: six personality variables
-- pty7CNI: six personality variables + disintegration(paychopathology also considered as personality)
+Computing three types of CNI: - cogCNI: cognitive variables - pty6CNI: six personality variables - pty7CNI: six personality variables + disintegration(paychopathology also considered as personality)
 
 \*\*NOTE - write about ipsatization and controlling for overall mean when computing rpofile similarity analysis
 
-1. Generate `z_ctry_responses` [Ipsatized country responses] 
-2. Generate `z_responses` [Ipsatized self rating responses] 
-3. Generate `Overall_M.responses` [Overall means of all items computed, uses Ipsatized self rating responses for all participants regardless of country] 
+1.  Generate `z_ctry_responses` \[Ipsatized country responses\]
+2.  Generate `z_responses` \[Ipsatized self rating responses\]
+3.  Generate `Overall_M.responses` \[Overall means of all items computed, uses Ipsatized self rating responses for all participants regardless of country\]
 
 ```{r funs.-model_CNI}
 #FUNCTIONS for computing CNIs
@@ -653,13 +643,13 @@ load(here("objects/Study1/all_CNI.mods_study1.Rdata"))
 ```
 
 ## RQ: Measuring Model Complexity
+
 Model complexity is assessed for each Cultural Normativity Index (CNI) measure by including all items used to construct the CNI. Two metrics are used to evaluate complexity:
 
-1. The number of factors suggested for retention by Parallel Analysis.
-2. The number of unrotated Principal Components required to extract 50% or more of the variance in the data.
+1.  The number of factors suggested for retention by Parallel Analysis.
+2.  The number of unrotated Principal Components required to extract 50% or more of the variance in the data.
 
 These metrics provide quantitative measures of the underlying dimensionality and structure of each CNI.
-
 
 ```{r fun.-heterogeneity}
 # Function to calculate heterogeneity
@@ -749,94 +739,116 @@ ggplot(., aes(x = x_label, y = value, color = metric, group = metric)) +
         legend.position = "bottom")
 ```
 
-
 ### Figure: distribution of CNI's
 
 ```{r fun.-plot_CNI}
 #Functions
 #model1_est = tidy(model1, conf.int = T)
 
-#plot coefficient plot/forst plot and histogram
-plot_CNI <- \(model_obj, title){
-   mod_slopes <- slopes(model_obj , variables = "z_ctry_response", by = "pID")
+#this function does not work with map for some reason, the color mapping does not work!! 
+plot_CNI <- function(model_obj) {
+  # Get the name of the object passed to the function
+  obj_name <- deparse(substitute(model_obj))
   
-  coefficient.plot <- mod_slopes %>% 
-    ggplot(aes(x = reorder(pID, estimate), y = estimate)) +
-    geom_segment(aes(xend = pID, 
-                     y = conf.low, 
-                     yend = conf.high),
-   #CHANGES: drop the alpha value to .06 or  lower, check after rendering the entire document in pdf
-                 alpha = .1) +
-    geom_point(size = .2) +
-    scale_x_discrete(breaks = NULL) +
-    coord_cartesian(ylim = c(0, .9)) +
-    labs(x = "Participant", y = "CNI coefficient", title = title) +
-    theme_bw()
+  # Extract the title (everything before the underscore)
+  title <- str_extract(obj_name, "^[^_]+")
   
-  hist.plot <- mod_slopes %>% 
+  # Define color mapping
+  color_map <- tibble(
+    mod_name = c("cogCNI", "ismCNI", "globeCNI", "fantcCNI", "pty6CNI", "pty7CNI"),
+    color = c("#1e81b0", "#70d6ff", "#a7bed3", "#a0c4ff", "#ff7477", "#ff70a6")
+  )
+  
+  # Determine the color based on the title
+  plot_color <- color_map %>% 
+    filter(str_detect(mod_name, title)) %>% 
+    pull(color)
+  
+  model_obj= ismCNI_mod
+  # Calculate slopes
+  mod_slopes <- slopes(model_obj, variables = "z_ctry_response", by = "pID")
+  
+  coefficient_plot <- mod_slopes %>%
+      ggplot(aes(x = reorder(pID, estimate), y = estimate)) +
+      geom_segment(aes(xend = pID,
+y = conf.low,yend = conf.high),
+                   alpha = .08 , color = plot_color) +
+      geom_point(size = .22, color = plot_color) +
+      scale_x_discrete(breaks = NULL) +
+      #coord_cartesian(ylim = c(-0.2, .92)) +
+      labs(x = "Participant", y = "CNI coefficient", title = title) +
+      theme_bw()
+  
+   hist_plot <- mod_slopes %>%
     as.data.frame() %>%
     ggplot(aes(x = estimate)) +
-    geom_histogram(binwidth = .01, color = "white") +
+    geom_histogram(binwidth = .01, color = "white", fill = plot_color) +
     labs(x = "CNI coefficient", y = "Frequency", title = title) +
     scale_x_continuous(limits = c(-0.3, 0.92))+
     theme_bw()
   
-  return(lst(coefficient.plot,hist.plot ))
+  return(lst(coefficient_plot,hist_plot ))
 }
 ```
 
-```{r DONT-RUN-CNIplots, results = 'asis', eval = FALSE,}
-CNI_plots <- map2(
-  .x = lst(cogCNI_mod,pty6CNI_mod,pty7CNI_mod,
-     ismCNI_mod,fantcCNI_mod, globeCNI_mod),
-  #CHANGES: cogCNI_mod -> "Cognitive CNI"...etc.
-  .y = convert_to_char(cogCNI_mod,
-     pty6CNI_mod,pty7CNI_mod,ismCNI_mod, 
-     fantcCNI_mod, globeCNI_mod),
-  .f = plot_CNI
-     )
+```{r  DONT-RUN-CNIplots, results = 'asis', eval = FALSE}
+cogCNI_plot <- plot_CNI(cogCNI_mod) 
+ismCNI_plot <- plot_CNI(ismCNI_mod) 
+globeCNI_plot <- plot_CNI(globeCNI_mod)
+fantcCNI_plot <- plot_CNI(fantcCNI_mod)
+pty6CNI_plot <- plot_CNI(pty6CNI_mod)
+pty7CNI_plot <- plot_CNI(pty7CNI_mod)
 ```
 
-```{r save-CNIplots, echo = F, eval = F}
-save(CNI_plots,
-     file = here("objects/Study1/all_CNIplots1.Rdata"))
+```{r save-CNImods_plots, echo = F, eval = F}
+save(cogCNI_plot, ismCNI_plot, globeCNI_plot, fantcCNI_plot, pty6CNI_plot, pty7CNI_plot, 
+     file = here("objects/Study1/all_CNImods_plots.Rdata"))
 ```
 
-```{r load-CNIplots, echo = F}
-load(here("objects/Study1/all_CNIplots1.Rdata"))
+```{r load-CNImods_plots, echo = F}
+load(here("objects/Study1/all_CNImods_plots.Rdata"))
+```
+
+```{r fun.-patch_CNIplots}
+patch_CNIplots <- \(plot_list, title){
+  
+  p1 <- plot_list$coefficient_plot & 
+  theme(plot.title = element_blank())
+  
+  p2 <- plot_list$hist_plot & 
+  theme(plot.title = element_blank())
+  
+  combined_plot <- p1 + p2 +
+    plot_annotation(title = title,
+    theme = theme(plot.title = element_text(hjust = 0.5)))
+  
+  return(combined_plot)
+}
 ```
 
 ```{r}
-#Histogram
-library(patchwork)
-CNI_plots$cogCNI_mod$hist.plot
-
-(CNI_plots$pty6CNI_mod$hist.plot +
- CNI_plots$pty7CNI_mod$hist.plot) +
-    plot_layout(axis_titles = "collect")
-  
-  (CNI_plots$ismCNI_mod$hist.plot+
- CNI_plots$fantcCNI_mod$hist.plot +
-   CNI_plots$globeCNI_mod$hist.plot) +
-  plot_layout(axis_titles = "collect")
-
-#plot_layout(axis_titles = "collect"))/
-
+patch_CNIplots(cogCNI_plot, "cognitive CNI")
 ```
 
 ```{r}
-#Coefficient plot
-(CNI_plots$cogCNI_mod$coefficient.plot + 
- CNI_plots$pty6CNI_mod$coefficient.plot +
- CNI_plots$pty7CNI_mod$coefficient.plot) +
-    plot_layout(axis_titles = "collect")
-  
-  (CNI_plots$ismCNI_mod$coefficient.plot+
- CNI_plots$fantcCNI_mod$coefficient.plot +
-   CNI_plots$globeCNI_mod$coefficient.plot) +
-  plot_layout(axis_titles = "collect")
+patch_CNIplots(ismCNI_plot, "Isms-Cognitive CNI")
 ```
 
+```{r}
+patch_CNIplots(globeCNI_plot, "Globe-Cognitive CNI")
+```
+
+```{r}
+patch_CNIplots(fantcCNI_plot, "Fanaticism-Cognitive CNI")
+```
+
+```{r}
+patch_CNIplots(pty6CNI_plot, "Personaliy6 CNI")
+```
+
+```{r}
+patch_CNIplots(pty7CNI_plot, "Personaliy7 CNI")
+```
 
 ```{r DONT-RUN-create-tbl-cni-mods, echo = T, eval = F}
 CNImods_table1 <- modelsummary(
@@ -988,7 +1000,7 @@ all_mods_ctry.trends %>%
   guides(linetype = "none")
 ```
 
-## RQ 2: cogCNI ~ ptyCNI
+## RQ 2: cogCNI \~ ptyCNI
 
 ```{r fun.-cni-mod-effects}
 # Moderators here have to continuous, this won't work for categorical moderators
@@ -1088,7 +1100,6 @@ cni.ContMod_effects_tblData <- function(CNIprofile_data, variable_type) {
   return(table)
 }
 ```
-
 
 ```{r fun.-specify-var-names}
 #function to specify the correct variable names for all moderators [Pty + Cog + swb]
@@ -1228,7 +1239,7 @@ load(here("objects/Study1/cni.ContMod_tables1.Rdata"))
 # [~33mins to load] 4:26pm start - end 4:58pm end
 ```
 
-Tables 
+Tables
 
 ```{r echo = F, eval=T}
 cni.ContMod_tables$cogCNI.pty7 %>% 
@@ -1240,7 +1251,6 @@ cni.ContMod_tables$cogCNI.cog %>%
   cni.ContMod_effects_table(., "cognitive CNI ~ cognitive")
 ```
 
-
 ```{r echo = F, eval=T}
 cni.ContMod_tables$ismCNI.pty7 %>% 
   cni.ContMod_effects_table(., "ism CNI ~ personality")
@@ -1250,7 +1260,6 @@ cni.ContMod_tables$ismCNI.pty7 %>%
 cni.ContMod_tables$ismCNI.cog %>% 
   cni.ContMod_effects_table(., "ism CNI ~ cognitive")
 ```
-
 
 ```{r echo = F, eval=T}
 cni.ContMod_tables$globeCNI.pty7 %>% 
@@ -1262,7 +1271,6 @@ cni.ContMod_tables$globeCNI.cog %>%
   cni.ContMod_effects_table(., "globe CNI ~ cognitive")
 ```
 
-
 ```{r echo = F, eval=T}
 cni.ContMod_tables$fantcCNI.pty7 %>% 
   cni.ContMod_effects_table(., "fanaticism CNI ~ personality")
@@ -1273,7 +1281,6 @@ cni.ContMod_tables$fantcCNI.cog %>%
   cni.ContMod_effects_table(., "fanaticism CNI ~ cognitive")
 ```
 
-
 ```{r echo = F, eval=T}
 cni.ContMod_tables$pty6CNI.pty7 %>% 
   cni.ContMod_effects_table(., "Personality 6 ~ personality")
@@ -1283,7 +1290,6 @@ cni.ContMod_tables$pty6CNI.pty7 %>%
 cni.ContMod_tables$pty6CNI.cog %>% 
   cni.ContMod_effects_table(., "Personality 6 ~ cognitive")
 ```
-
 
 ```{r echo = F, eval=T}
 cni.ContMod_tables$pty7CNI.pty7 %>% 
@@ -1296,6 +1302,7 @@ cni.ContMod_tables$pty7CNI.cog %>%
 ```
 
 Plots
+
 ```{r fun.-plot-cni.ContMod}
 cni.pty_effects_plot <-\(data, title){
 
@@ -1421,7 +1428,6 @@ cni.ContMod_tables$cogCNI.cog %>%
   cni.cog_effects_plot(., "cognitive CNI ~ cognitive")
 ```
 
-
 ```{r echo = F, eval=T}
 #| fig-height: 5
 #| fig-width: 10
@@ -1437,7 +1443,6 @@ cni.ContMod_tables$ismCNI.pty7 %>%
 cni.ContMod_tables$ismCNI.cog %>% 
   cni.cog_effects_plot(., "isms CNI ~ cognitive")
 ```
-
 
 ```{r echo = F, eval=T}
 #| fig-height: 5
@@ -1455,7 +1460,6 @@ cni.ContMod_tables$globeCNI.cog %>%
   cni.cog_effects_plot(., "globe CNI ~ cognitive")
 ```
 
-
 ```{r echo = F, eval=T}
 #| fig-height: 5
 #| fig-width: 10
@@ -1471,7 +1475,6 @@ cni.ContMod_tables$fantcCNI.pty7 %>%
 cni.ContMod_tables$fantcCNI.cog %>% 
   cni.cog_effects_plot(., "fanaticism CNI ~ cognitive")
 ```
-
 
 ```{r echo = F, eval=T}
 #| fig-height: 5
@@ -1489,7 +1492,6 @@ cni.ContMod_tables$pty6CNI.cog %>%
   cni.cog_effects_plot(., "personality6 CNI ~ cognitive")
 ```
 
-
 ```{r echo = F, eval=T}
 #| fig-height: 5
 #| fig-width: 10
@@ -1503,14 +1505,12 @@ cni.ContMod_tables$pty7CNI.pty7 %>%
 #| fig-width: 10
 #| out-width: "100%"
 cni.ContMod_tables$pty7CNI.cog %>% 
-  cni.cog_effects_plot(., "personality7 CNI ~ cognitive")
+  cni.cog_effects_plot(., "personality7 CNI ~ cognitive") 
 ```
 
-
-## RQ2.1: CNI~well-being
+## RQ2.1: CNI\~well-being
 
 ```{r DONT-RUN-swb-effects, echo = T, eval = F}
-
 cni.swbMod_tblNames <- tibble(table_name = c("cogCNI.swb", "ismCNI.swb", "globeCNI.swb", "fantcCNI.swb", "pty6CNI.swb", "pty7CNI.swb")) %>%
   mutate(
     cni_type = paste0(str_extract(table_name, "^[^.]+"), "_profiles"),
@@ -1571,7 +1571,6 @@ cni.swbMod_tables %>%
      group_rows("Country level", 7, 12) 
 ```
 
-
 ```{r fun.-plot-cni.swb_effects}
 cni.swb_effects_plot <- \(data, title){
 #swb_try_data %>% 
@@ -1619,7 +1618,6 @@ scale_fill_manual(values = c(
 }
 ```
 
-
 ```{r plot-cni.swb_effects}
 #| fig-height: 6
 #| fig-width: 10
@@ -1633,16 +1631,11 @@ cni.swbMod_tables %>%
   guides(fill = "none")
 ```
 
+## RQ2.2: Well-being \~ CNI
 
-
-
-## RQ2.2: Well-being ~ CNI
-
-```{r eval=FALSE, echo=FALSE}
-
-names(data1)
+```{r swb.cni-lmer, eval=FALSE, echo=FALSE}
 cni_mod=ismCNI_mod
-compute_swb.cni_mod <- \(cni_mod){
+compute_swb.cni_mods_lmer <- \(cni_mod){
  
   data <- coef(cni_mod)$pID %>%
   as.data.frame() %>%
@@ -1669,15 +1662,13 @@ all_swb.cni_mods <- map(
   lst(cogCNI_mod, ismCNI_mod, globeCNI_mod,fantcCNI_mod,
   pty6CNI_mod, pty7CNI_mod), 
   
-  compute_swb.cni_mod) 
-
-
+  compute_swb.cni_mods_lmer) 
 ```
 
-Test for heteroskedasticity:
-```{r eval=FALSE, echo=FALSE}
- library(whitestrap)
+#-------------------------# Aug 14 11:50am Test for heteroskedasticity:
 
+```{r DONT-RUN-swb.cni_mods_heterosk, echo = T, eval = F}
+ library(whitestrap)
 
 compute_heterosk_swb.cni <- \(cni_mod){
   
@@ -1697,7 +1688,7 @@ compute_heterosk_swb.cni <- \(cni_mod){
   
   quadratic_heterosk <- white_test_boot(quadratic_lm)
   
-  return(lst(linear, linear_heterosk,  quadratic_lm, quadratic_heterosk))
+  return(lst(linear_lm, linear_heterosk,  quadratic_lm, quadratic_heterosk))
   
 }
 
@@ -1706,15 +1697,50 @@ all_swb.cni_mods_heterosk <- map(
   pty6CNI_mod, pty7CNI_mod), 
   
   compute_heterosk_swb.cni) 
-
-
-all_swb.cni_mods_heterosk$ismCNI_mod$linear_heterosk 
-
 ```
 
-```{r eval=FALSE, echo=FALSE}
-# mod_wb2_lm <- lm(sc_swb ~ CNI + I(CIˆ2) , data = data_long)
-# white_test_boot(mod_wb2_lm)
+```{r save-swb.cni_mods_heterosk, echo = F, eval = F}
+save(all_swb.cni_mods_heterosk,
+ file = here("objects/Study1/swb.cni_mods_heterosk.Rdata"))
+```
+
+```{r load-swb.cni_mods_heterosk, echo = F}
+#takes a while to load
+load(here("objects/Study1/swb.cni_mods_heterosk.Rdata"))
+```
+
+```{r}
+make_swb.cni_heterosk_tbl <- \(mod_name) {
+  list(
+    model = mod_name,
+    
+    w_stat_linear = all_swb.cni_mods_heterosk[[mod_name]]$linear_heterosk$w_stat,
+    p_value_linear = all_swb.cni_mods_heterosk[[mod_name]]$linear_heterosk$p_value,
+    w_stat_quadratic = all_swb.cni_mods_heterosk[[mod_name]]$quadratic_heterosk$w_stat,
+    p_value_quadratic = all_swb.cni_mods_heterosk[[mod_name]]$quadratic_heterosk$p_value
+  )
+}
+
+swb.cni_heterosk_tbl <- map_dfr(convert_to_char(cogCNI_mod, ismCNI_mod, globeCNI_mod,fantcCNI_mod,
+  pty6CNI_mod, pty7CNI_mod), make_swb.cni_heterosk_tbl)
+```
+
+```{r}
+swb.cni_heterosk_tbl %>% 
+  mutate(model=str_extract(model, "^[^_]+")) %>% 
+  kable(booktabs = T,
+        escape = F,
+        format = "latex",
+        col.names = c("Model", "W", "$\\textit{p}$", "W", "$\\textit{p}$")) %>%
+  kable_styling() %>%
+  add_header_above(c("", "Linear" = 2, "Quadratic" = 2)) %>% 
+   footnote(general = paste0(
+    "Linear model: $\\text{sc_swb.indv} \\sim \\text{CNI}$; ",
+    "Quadratic model: $\\text{sc_swb.indv} \\sim \\text{CNI} + \\text{CNI}^2$"
+  ), general_title = "Note:",
+           footnote_as_chunk = TRUE,
+           threeparttable = TRUE)
+
 ```
 
 Plot swb ~ CNI
@@ -1760,15 +1786,12 @@ plot_swb.cni_patch <- \(model){
   
    title <- str_extract(model, "^[^_]+")
   
-
 plot_swb.cni_patch $li + 
   plot_swb.cni_patch $qi + 
   plot_layout(axis_titles = "collect")+
   plot_annotation(
     title = title ,
-      tag_levels = list(c("Linear", "Quadratic") #, 
-     # caption = "<span style='color:#cc254f; font-weight:bold; font-style:italic;'>Linear</span>"
-  )) &  
+      tag_levels = list(c("Linear", "Quadratic"))) &  
   theme(
     plot.tag.position = c("top"),
     plot.caption = element_markdown(size = 12)
@@ -1778,19 +1801,19 @@ plot_swb.cni_patch $li +
 
 ```
 
-```{r eval=TRUE, echo=FALSE} 
+```{r eval=TRUE, echo=FALSE}
 plot_swb.cni_patch("cogCNI_mod")
 ```
 
-```{r eval=TRUE, echo=FALSE} 
+```{r eval=TRUE, echo=FALSE}
 plot_swb.cni_patch("ismCNI_mod")
 ```
 
-```{r eval=TRUE, echo=FALSE} 
+```{r eval=TRUE, echo=FALSE}
 plot_swb.cni_patch("globeCNI_mod")
 ```
 
-```{r eval=TRUE, echo=FALSE} 
+```{r eval=TRUE, echo=FALSE}
 plot_swb.cni_patch("fantcCNI_mod")
 ```
 
@@ -1801,9 +1824,3 @@ plot_swb.cni_patch("pty6CNI_mod")
 ```{r eval=TRUE, echo=FALSE}
 plot_swb.cni_patch("pty7CNI_mod")
 ```
-
-#-------------------------# Aug 14 11:50am
-
-
-
-
