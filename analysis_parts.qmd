@@ -1,0 +1,418 @@
+---
+title: "analysis_remaining parts"
+format: html
+editor: visual
+---
+
+
+```{r fun.-interaction-plot}
+#CNIxContMod interaction plot
+library(interactions)
+cni.mod_plot <- \(model, legend_title) {
+  
+  model = pull(cCNI.swb_indv$cni.modtr_model, mod.linear)
+  interact_plot(model, 
+                pred = z_country_response,
+                modx = modtr_score, #!!enquo(modx_var),
+                x.label = "z_Country Profile",
+                y.label = "z_Self-Rating Profile", 
+                legend.main = {{legend_title}},
+                colors = c("#31a354", "#e34a33", "#2c7fb8"),
+                vary.lty = TRUE,
+                line.thickness = .5,
+                xlim = c(-2, 2),
+                ylim = c(-1.5, 1)) +
+    scale_linetype_manual(values = rep("solid", 3)) +
+    guides(linetype = "none") +
+    theme_minimal()+
+    theme(
+      axis.title = element_text(size = 10),  
+      axis.text = element_text(size = 7)
+    )+
+    coord_cartesian(xlim = c(-2, 2), ylim = c(-1.5, 1))
+}
+```
+
+
+```{r}
+
+cCNI.sc_swb_indv <- data1 %>% 
+  select(pID, sc_swb.indv) %>% 
+  left_join(cogCNI_profiles1$self.ctry_profiles, by = "pID") %>% 
+  lmer(z_response ~ z_ctry_response * sc_swb.indv + (-1 + z_ctry_response|pID),
+  data = .)
+
+interact_plot(model = cCNI.sc_swb_indv, 
+              pred = z_ctry_response,
+                modx = sc_swb.indv)
+
+model <- pluck(cCNI.swb_indv$cni.modtr_models$mod.linear)[[1]]
+
+interact_plot(model = pluck(cCNI.swb_comm$cni.modtr_models$mod.linear)[[1]], 
+              pred = z_ctry_response,
+              modx = modtr_score)
+
+
+
+interact_plot(model = pluck(cCNI.pty7_indv$cni.modtr_models$mod.linear)[[7]], 
+              pred = z_ctry_response,
+              modx = modtr_score)
+  
+cni.mod_plot(model = pull(cCNI.swb_indv$cni.modtr_models, mod.linear), legend_title = "Well-being")
+
+```
+
+
+
+
+## RQ 3. Linear effects {CNI~personality}
+
+### RQ3.a: CNI~personality [Individual level]
+
+
+
+```{r model_cni.pty}
+#This will take every personality variable name in pty_vars and produce a list of models 
+model_cni.pty <- function(pty_variables, relationship, data) {
+
+  #empty list
+  models <- list()
+  
+  for (pty_variable in pty_variables) {
+    
+       moderator <- ensym(pty_variable)
+   
+   if (relationship == "linear") {
+     formula <- as.formula(paste(
+       "z_self_response ~ z_country_response *", as_name(moderator),
+       "+ overall_M.response + (-1 + z_country_response | pID)"
+     ))
+   } else if (relationship == "quadratic") {
+     formula <- as.formula(paste(
+       "z_self_response ~ z_country_response *", as_name(moderator), 
+       "+ I(z_country_response * ", as_name(moderator), "^2)",
+       "+ overall_M.response + (-1 + z_country_response | pID)"
+     ))
+   } else {
+     stop("relationship must be either 'linear' or 'quadratic'")
+   }
+   
+   model <- lmer(formula, data = data)
+    
+    # Save the model in the list
+    models[[pty_variable]] <- model
+  }
+  
+  return(models)
+}
+```
+
+
+```{r}
+# vector of personality variables
+pty_vars <- purrr::keep(names(data_long), ~ startsWith(.x, "sc_p"))
+
+#linear, individual level
+lin_indv_cni.pty_models <- model_cni.pty(pty_vars, relationship = "linear", data = data_long)
+```
+
+```{r table_cni.pty}
+#Interaction tables 
+table_cni.pty <- function(models, relationship) {
+  map_dfr(names(models), ~ {
+    model_tidy <- broom.mixed::tidy(models[[.x]], conf.int = TRUE)
+    
+    if (relationship == "linear") {
+      filtered_terms <- model_tidy %>%
+        filter(term == paste0("z_country_response:", .x))
+    } else if (relationship == "quadratic") {
+      filtered_terms <- model_tidy %>%
+        filter(term == paste0("I(z_country_response * ", .x, "^2)"))
+    } else {
+      stop("relationship must be either 'linear' or 'quadratic'")
+    }
+    
+    filtered_terms %>%
+      select(estimate, std.error, conf.low, conf.high, p.value) %>%
+      mutate(
+        pty_vars = str_replace(.x, "sc_p(.*)", "\\1"),
+        .before = estimate
+      )
+  })
+}
+```
+
+
+```{r}
+#linear, individual level
+lin_indv_cni.pty_effects <-
+table_cni.pty(lin_indv_cni.pty_models, "linear")
+```
+
+
+```{r}
+# All CNI x personality interaction plots
+lin_indv_cni.pty_plots <- imap(lin_indv_cni.pty_models, function(model, name) {
+  legend_title <- str_remove(name, "sc_p")
+  
+  cni.mod_plot(
+    model = model,
+    modx_var = !!sym(name),
+    legend_title = legend_title
+  )
+})
+
+grid.arrange(grobs = lin_indv_cni.pty_plots, ncol = 2)  # Adjust ncol as needed
+```
+
+### RQ3.b: CNI~personality [Community level]
+
+```{r}
+#community = country 
+data_long <- data_long %>% 
+  with_groups(country, mutate, (across(contains("sc_p"),
+               ~ mean(., na.rm = TRUE),
+              .names = "comm_{.col}"))) 
+
+
+# vector of personality variables
+ptyComm_vars <- purrr::keep(names(data_long), ~ startsWith(.x, "comm_sc_p"))
+
+# Run models - community (country) personality scores: obtained by computing means of all scaled personality scores grouped by countries
+
+lin_comm_cni.pty_models <- model_cni.pty(ptyComm_vars, relationship = "linear", data = data_long)
+```
+
+```{r}
+#linear, community/country level
+lin_comm_cni.pty_effects <-
+table_cni.pty(lin_comm_cni.pty_models, "linear")
+```
+
+
+Figure: Moderating effects of personality traits at the Individual and Community levels on CNI
+
+
+
+Figure: Linear associations between personality traits at the Individual and Community level and CNI
+
+```{r barplot-all_lin_effects}
+bind_rows(
+  Individual =lin_indv_cni.pty_effects,
+  Country =lin_comm_cni.pty_effects,
+  .id = "level") %>% 
+  mutate(
+    pty_vars = case_when(
+      str_detect(pty_vars, "con") ~ "Conscientiousness",
+      str_detect(pty_vars, "hon") ~ "Honesty",
+      str_detect(pty_vars, "agr") ~ "Agreeableness",
+      str_detect(pty_vars, "res") ~ "Resilience",
+      str_detect(pty_vars, "ext") ~ "Extraversion",
+      str_detect(pty_vars, "ov") ~ "Originality/Virtuosity",
+      TRUE ~ pty_vars
+    )) %>%
+
+ggplot(aes(x = estimate, y = reorder(pty_vars, estimate), fill = level)) +
+  geom_bar(stat = "identity") +
+  geom_vline(xintercept = 0, linetype = "solid", color = "#f0f0f0") +
+  geom_errorbar(aes(xmin = conf.low, xmax = conf.high), width = 0.2) +
+  facet_wrap(~ level, ncol = 1, scales = "free_y") +
+  scale_fill_manual(values = c("Individual" = "#fa9fb5", "Country" = "#a6bddb")) +
+  labs(x = "Effect on CNI", y = "Personality Trait",
+       title = "Moderating effects of Personality on CNI") +
+  theme_minimal() +
+  theme(axis.text.y = element_text(hjust = 1))+
+      guides(fill = "none") 
+```
+
+
+
+Figure: Interaction plots indicating moderating effects of personality traits at the Community levels on individual CNI's.
+
+```{r interaction_plot-all_lin_effects}
+# All CNI x personality interaction plots
+lin_comm_cni.pty_plots <- imap(lin_comm_cni.pty_models, function(model, name) {
+  legend_title <- str_remove(name, "sc_p")
+  
+  cni.mod_plot(
+    model = model,
+    modx_var = !!sym(name),
+    legend_title = legend_title
+  )
+})
+
+grid.arrange(grobs = lin_comm_cni.pty_plots, ncol = 2)  # Adjust ncol as needed
+```
+
+------------------------------
+
+## RQ 3. Quadratic effects {CNI~personality}
+
+### RQ3.a: CNI~personality [Individual level]
+```{r}
+#pty_vars - for indiv level
+quad_indv_cni.pty_models <- model_cni.pty(pty_vars, relationship = "quadratic", data = data_long)
+
+#get quadractic effects
+quad_indv_cni.pty_effects <-
+table_cni.pty(quad_indv_cni.pty_models, "quadratic")
+```
+
+```{r results='hide', fig.show='hold'}
+quad_plot_cni.personality <- function(models, data, level){
+  
+  if (level == "Individual") {
+    personality_traits <- c("sc_pcon", "sc_phon", "sc_pagr", "sc_pres", "sc_pext", "sc_pov")
+  } else if (level == "Community") {
+    personality_traits <- c("comm_sc_pcon", "comm_sc_phon", "comm_sc_pagr", "comm_sc_pres", "comm_sc_pext", "comm_sc_pov")
+  } else {
+    stop("Level must be either 'Individual' or 'Community'")
+  }
+  
+  plot_list <- list()
+  
+  for (trait in personality_traits) {
+    # Extract random slopes (CNI)
+    random_slopes <- ranef(models[[trait]])$pID %>%
+      as.data.frame() %>%
+      rownames_to_column("pID") %>%
+      rename(CNI = z_country_response)
+    
+    # Get personality scores for each pID
+    pty_scores <- data_long %>%
+      group_by(pID) %>%
+      distinct(!!sym(trait))
+    
+    # Merge random slopes with personality scores
+    plot_data <- random_slopes %>%
+      left_join(pty_scores, by = "pID") %>% tibble()
+    
+    # Create trait labels
+    trait_label <- case_when(
+      str_detect(trait, "con") ~ "Conscientiousness",
+      str_detect(trait, "hon") ~ "Honesty",
+      str_detect(trait, "agr") ~ "Agreeableness",
+      str_detect(trait, "res") ~ "Resilience",
+      str_detect(trait, "ext") ~ "Extraversion",
+      str_detect(trait, "ov") ~ "Originality/Virtuosity",
+      TRUE ~ trait
+    )
+    
+    # Create the plot
+    p <- ggplot(plot_data, aes(x = !!sym(trait), y = CNI)) +
+      geom_smooth(method = "loess", se = TRUE, color = "#3d7797") +
+      labs(x = trait_label, 
+           y = "CNI")+
+          # title = paste("CNI and", trait_label)) +
+      theme_minimal() +
+      theme(plot.title = element_text(size = 10))+
+      coord_cartesian(xlim = c(1, 5), ylim = c(-0.05, 0.2)) +  # Set axis limits
+      scale_x_continuous(breaks = seq(1, 5, 1)) +  # Set x-axis breaks
+      scale_y_continuous(breaks = seq(-0.01, 0.2, 0.05))  # Set y-axis breaks
+    
+    
+    plot_list[[trait]] <- p
+  }
+  
+  # Arrange plots in a grid
+  grid_plot <- grid.arrange(grobs = plot_list, ncol = 2,
+                            top = textGrob(paste(level, "Level"), 
+                                           gp = gpar(fontsize = 16, font = 2)))
+  
+  return(grid_plot)
+}
+
+# For individual level
+quad_plot_cni.personality(quad_indv_cni.pty_models, data_long, level = "Individual")
+```
+
+### RQ3.a: CNI~personality [Community level]
+
+```{r}
+#ptyComm_vars - for community level
+quad_comm_cni.pty_models <- model_cni.pty(ptyComm_vars, relationship = "quadratic", data = data_long)
+
+quad_comm_cni.pty_effects <-
+table_cni.pty(quad_comm_cni.pty_models, "quadratic")
+```
+
+Does it make sense to compute community level quadratic relationships?
+
+```{r results='hide', fig.show='hold'}
+# For community level
+ quad_plot_cni.personality(quad_comm_cni.pty_models, data_long, level = "Community")
+```
+
+### Combined Table
+
+Note - check on standardized effect sizes
+Why are the error bars for Country level> Individual level?
+Resilience and Agreeableness indicate negative effects at the country level
+
+```{r}
+format_effects_table <- \(effects_tab1, effects_tab2){
+  
+formatted_table <- bind_rows(
+  Individual = effects_tab1,#lin_indv_cni.pty_effects,
+  Country = effects_tab2,#lin_comm_cni.pty_effects,
+  .id = "level"
+) %>% 
+  mutate(level = factor(level),
+         pty_vars = case_when(
+    str_detect(pty_vars, "con") ~ "Conscientiousness",
+    str_detect(pty_vars, "hon") ~ "Honesty",
+    str_detect(pty_vars, "agr") ~ "Agreeableness",
+    str_detect(pty_vars, "res") ~ "Resilience",
+    str_detect(pty_vars, "ext") ~ "Extraversion",
+    str_detect(pty_vars, "ov") ~ "Originality/Virtuosity",
+    TRUE ~ pty_vars 
+  )) %>% 
+  mutate(
+    CI = sprintf("[%.2f, %.2f]", round(conf.low, 2), round(conf.high, 2)),
+    p = ifelse(p.value < 0.001, "<.001", sprintf("%.3f", p.value)),
+    Est = round(estimate, 2),
+    Traits = pty_vars
+  ) %>%
+  select(level, Traits, Est, CI, p) 
+
+return(formatted_table)
+
+}
+
+all_lin_effects <- format_effects_table(lin_indv_cni.pty_effects, lin_comm_cni.pty_effects)
+
+all_quad_effects <- format_effects_table(quad_indv_cni.pty_effects, quad_comm_cni.pty_effects)
+```
+
+```{r}
+# Combine indv and community effects
+combined_table <- 
+  left_join(all_lin_effects, all_quad_effects, by=c("level", "Traits"), suffix = c(".lin", ".quad")) %>% select(-level)
+
+# pdf table
+combined_table %>%
+  kable("latex", booktabs = TRUE, align = c('l', c(rep('c', 6))),
+        col.names = c(" ", rep(c("Est", "95\\% CI", "$p$"), 2)),
+        escape = FALSE,
+        caption = "Association between personality traits and CNI") %>%
+  kable_styling(latex_options = c("hold_position", "scale_down"),
+                full_width = FALSE) %>%
+  add_header_above(c(" " = 1, "Linear" = 3, "Quadratic" = 3)) %>%
+  column_spec(1, width = "3cm") %>%
+  column_spec(2, width = "1.2cm") %>%
+  column_spec(3, width = "2.3 cm") %>%
+  column_spec(4:5, width = "1.2 cm") %>%
+  column_spec(6, width = "2.3 cm") %>%
+  column_spec(7, width = "1.2 cm") %>% 
+  pack_rows("Individual", 1, 6) %>%
+  pack_rows("Country", 7, 12)
+```
+
+# Cross-validation
+
+```{r}
+
+```
+
+
+# Age
