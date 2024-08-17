@@ -1,0 +1,306 @@
+---
+title: "Cultural Normativity"
+format: html
+editor: visual
+---
+
+```{r Libraries}
+library(tidyverse)
+library(rio)
+library(expss)
+library(scales)
+
+#Measurement Invariance
+library(lavaan)
+#install.packages("expss")
+#library(devtools)
+#devtools::install_github("MateusPsi/esemComp")
+library(esemComp)
+```
+
+# Study 1
+
+```{r}
+#|mmessage: false
+
+options(digits=2)
+
+#Study1 = data1
+data1 <- import(here::here("data", "mcvs8_2839mv3ssvsrm2partlyreduced.sav"), setclass = "tibble")
+
+facticism_items <- dput(c(
+  paste0("f_", "gc", c(69, 99, 56, 89, 4, 27, 68)),
+  paste0("f_", "ls", c(22, 95, 125)),
+  paste0("f_", "gk", c(48,88, 44, 56, 111, 20))))
+
+ssvs_items <- dput(c(paste0("ssvs", 1:10))) # Values
+
+pty_scales <- dput(paste0("sc_p", c("con", "hon", "agr", "res", "ext", "ov")))
+
+
+clean_d1 <- data1 %>% 
+  #selecting 96 variables + SWB
+  select(all_of(facticism_items), starts_with("ism_"), starts_with("sacy"), g1tr:fsp_1b, all_of(ssvs_items), sc_swb, all_of(pty_scales), NATION9, age, genderml) %>% #nrow #count(nation)
+  #Countries in Study 1
+ # USA, Slovakia, Serbia, Chile, Guatemala, Malaysia, China, Korea, 4= Belarus
+ filter(!NATION9 == 4) %>% 
+  mutate(NATION9 = as.character(NATION9),
+         genderml = as.character(genderml)) %>% 
+   mutate(nation = fct_recode(as.character(NATION9),
+           "USA"= "1",
+           "Slovakia"= "3",
+           "Serbia" = "2",
+           "Chile" = "5",
+           "Guatemala" = "6",
+           "Malaysia" = "7", 
+           "China" = "9", 
+           "Korea"= "8"),
+          gender = fct_recode(genderml,
+           "female" = "0", "male" = "1"))%>% 
+  # Add a step to scale all the ssvs items to a range between 1 to 5
+ mutate_at(ssvs_items, rescale, to = c(1, 5)) %>% 
+  select(-c(NATION9, genderml))
+
+clean_d1 %>% 
+  select(all_of(ssvs_items))
+
+
+```
+
+Q for GS: svss was not added in the 2015 analysis, we are definitely adding it? Is the svss scaling appropriate?
+
+```{r}
+clean_d1 %>% 
+ summarise_all(~(sum(is.na(.)))) %>%
+  select_if(. > 0)
+```
+
+Q for GS: There are 70 (34+36) participants who did not report their age or gender. There are 24 participants who do not have a SWB score. Can we drop only the 24 participants and specify that 34 n did not mention their age and 36 did not mention their gender? - reduced sample size for the last correlation with sc_swb; report age and gender
+
+We can specify the column from which we want to drop rows that have NAs. This is perhaps better than eliminating all the rows based on demographics.
+
+```{r}
+clean_d1 %>% 
+  drop_na(sc_swb) %>% 
+  nrow()
+
+clean_d1 %>% 
+ # drop_na(sc_swb) %>% 
+  nrow()
+```
+
+Imputation using Expected maximization
+
+Q for GS: Can we only impute the data in the variables? Is it necessary to impute the demographics?
+
+```{r}
+
+library(norm2)
+data(marijuana)
+
+#install.packages("missMethods")
+library(missMethods)
+ds_orig <- mvtnorm::rmvnorm(400, rep(0, 4))
+ds_mis <- delete_MCAR(ds_orig, p = 0.2)
+
+impute_EM(ds_mis, stochastic = TRUE, maxits = 500)
+
+
+#places 0, specified as mu in place of NAs
+impute_expected_values(as.matrix(marijuana), mu = rep(0,6), diag(1, 6))
+```
+
+overestimates data - maxits may not change things, stochastic may
+
+list wise: have all the data for the variables included exclude all cases with misisng values, run EM imputation, how things are corrrelated with each other
+
+stochastic regression
+
+Q for GS:
+
+```{r extra code}
+#|eval: false
+#|include: false
+#|eecho: false
+
+pty_rev_vars <-
+  rio::import(here::here("data","pty_scoring_try.xlsx"), setclass = "tibble") %>% 
+  filter(scoring == "R") %>% 
+  pull(variable_name)
+
+
+# For reverse scoring, all I need is to specify a character vector of all the items to be reverse scored and then run mutate
+clean_d1 %>% 
+    mutate_at(pty_rev_vars, ~6 - .)
+```
+
+## Table 1
+
+```{r}
+clean_d1 %>% 
+  group_by(nation) %>% 
+  summarize(mean_age = mean(age, na.rm=TRUE),
+            pct.male = mean(gender == "male", na.rm=TRUE)*100,
+            N = n()) %>% 
+  arrange(desc(nation))
+```
+
+## Figure 1
+
+```{r}
+compute_CN <- function(country){
+  cty_data <- clean_d1 %>% 
+  filter(nation == {{country}}) %>% 
+  select(-c(age, nation,gender, contains("swb"))) 
+
+t_data <- cty_data %>% 
+  t() %>% 
+  data.frame() %>% 
+  set_names(paste0("p", 1:nrow(cty_data))) %>% 
+  rowwise() %>% 
+  mutate(var_means = mean(pick(everything()))) 
+  
+p_data <- t_data %>% 
+  select(starts_with("p")) 
+
+var_m <-  t_data %>% 
+  select(var_means) 
+
+cn <- map2_vec(p_data, var_m , cor)
+
+cn
+}
+
+all_cntry_names <- dput(sort(as.character(unique(clean_d1$nation))))
+
+all_cn <- map(all_cntry_names, compute_CN) %>% 
+  set_names(all_cntry_names)
+```
+
+```{r}
+plot_freq <- function(country_name){
+all_cn %>% 
+ pluck(!!!{{country_name}}) %>% 
+data.frame() %>% 
+  set_names("cn_value") %>% 
+  ggplot(aes(cn_value))+
+   geom_histogram(bins = 30, alpha = .8) +
+    labs(title = {{country_name}})+
+   jtools::theme_apa()+
+    theme(axis.title.y=element_blank(),
+          axis.title.x=element_blank())
+}
+
+all_plots <- map(all_cntry_names, plot_freq) %>% 
+              set_names(all_cntry_names)
+
+
+library(patchwork)
+library(gridExtra)
+
+patchworkGrob((all_plots$Chile| all_plots$China| all_plots$Guatemala| all_plots$Korea)/
+(all_plots$Malaysia| all_plots$Serbia| all_plots$Slovakia| all_plots$USA)) %>%
+   grid.arrange(., left = "Frequency", bottom = "Cultural Normativity index")
+```
+
+## Table 2
+
+```{r}
+get_var_means <- function(country){
+    cty_data <- clean_d1 %>% 
+  filter(nation == {{country}}) %>% 
+  select(-c(age, nation,gender, contains("swb"))) 
+
+t_data <- cty_data %>% 
+  t() %>% 
+  data.frame() %>% 
+  set_names(paste0("p", 1:nrow(cty_data))) %>% 
+  rowwise() %>% 
+  mutate(var_means = mean(pick(everything()))) 
+
+t_data$var_means
+}
+
+all_cntry_means <- 
+  map(all_cntry_names, get_var_means)%>%
+  set_names(all_cntry_names)%>% 
+  data.frame()
+
+cor_mat <- all_cntry_means %>%
+  cor() 
+
+# library(corrplot)
+# source("http://www.sthda.com/upload/rquery_cormat.r")
+# f = rquery.cormat(all_cty_means)
+# f$r #changes the order of correlations
+```
+
+## Table 3
+
+Bivariate Correlations of Cultural Normativity with Big Six Personality Dimensions and SWB in Study 1
+
+```{r}
+country = "USA"
+
+# For personality items import sc_p.. i.e. scales of personality scored in the dataset
+get_other_vars_cors <- function(country){
+#also add personality variables
+cor_vars <- clean_d1 %>% 
+  filter(nation == {{country}}) %>% 
+  select(contains("swb")) %>% 
+  rowwise() %>% 
+  mutate(swb_total = sum(swb1:swb5)) %>% 
+  select(swb_total, swb1)
+
+cn_scores <- all_cn %>% 
+  pluck(!!!{{country}}) %>% 
+  data.frame() %>% 
+  set_names("CN") 
+
+cor(cor_vars , cn_scores) #%>% 
+  #pluck(1)
+}
+
+get_other_vars_cors("Chile")
+
+map(all_cntry_names, get_other_vars_cors) %>% 
+  set_names(all_cntry_names)%>% 
+  data.frame() %>% 
+  set_names(all_cntry_names)%>%
+  rownames_to_column(var = "variables") %>% 
+  pivot_longer(cols = Chile:USA, values_to = "corr", names_to = "country") %>% 
+  pivot_wider(names_from = variables, values_from = corr)
+```
+
+# Study 2
+
+## Data exploration
+
+```{r}
+#Study2 = data2
+data2 <- import(here::here("data", "SWV2012.sav"), setclass = "tibble")
+
+#rescale items from MFQ, Duke Religion Index and SSVS to range of 1-6
+
+#data2 %>% names() %>% tibble() %>%  export("varNames_Data2.xlsx")
+
+# Figure out the following
+# 1. What are the variable names of those that were retained
+# Variable names and Items
+data2 %>%  
+  select(10:285) %>% 
+  map_dfc(attr, "label") %>%
+  rowid_to_column() %>% 
+  pivot_longer(cols = 2:277, names_to = "Variable", values_to = "Item") %>% 
+  select(-rowid)
+# 2. Remove n from the data that have missing responses more than 5% 
+
+data2%>% 
+  #select(var names to be retained)
+  mutate(percent_missing = apply(., 1, function(x) mean(!complete.cases(x))) * 100) %>% 
+filter(percent_missing < 5) #%>% nrow()  
+
+#mean(!complete.cases(c(1,2,3,4, NA)))*100
+```
+
+WVS Saucier, 2014 [study](https://journals.sagepub.com/doi/full/10.1177/0022022114551791)

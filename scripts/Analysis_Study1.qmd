@@ -1,5 +1,5 @@
 ---
-title: "Cultural Normativity"
+title: "Cultural Normativity Index: Study 1"
 format: 
    pdf:
      mainfont: Times
@@ -53,7 +53,6 @@ library(gridExtra)
 library(ggplot2)
 library(dplyr)
 library(grid)
-library(ggridges)
 
 #mlm
 library(lme4)
@@ -69,7 +68,7 @@ library(pbkrtest)
 #install.packages("modelsummary")
 ```
 
-# STUDY 1
+
 
 ## Data cleaning
 
@@ -258,8 +257,8 @@ data1 <- all_data1 %>%
          #achievement orientation
         scC_globe_ac.indv = compute_trait_score(.,
             str_subset(item_names("Globe"), "^g.*ac.*$")),
-         #aggression
-        scC_globe_ag.indv = compute_trait_score(.,
+         #assertiveness
+        scC_globe_asrt.indv = compute_trait_score(.,
             str_subset(item_names("Globe"), "^g.*ag.*$")),
          #humane
         scC_globe_hu.indv = compute_trait_score(.,
@@ -267,8 +266,8 @@ data1 <- all_data1 %>%
         #masculinity
         scC_globe_ma.indv = compute_trait_score(.,
             str_subset(item_names("Globe"), "^g.*ma.*$")),
-         #individualism
-        scC_globe_in.indv = compute_trait_score(.,
+         #InGroupCollectivism
+        scC_globe_gc.indv = compute_trait_score(.,
             str_subset(item_names("Globe"), "^g.*in.*$")),
          #power distance
         scC_globe_po.indv = compute_trait_score(.,
