@@ -19,6 +19,7 @@ library(psych)
 library(dplyr)
 library(tibble)
 library(here)
+library(haven) 
 
 #Measurement Invariance
 library(lavaan)
@@ -48,8 +49,18 @@ library(pbkrtest)
 ```{r}
 all_data2 <- import(here::here("data", "SWV2012.sav"), setclass = "tibble")
 
-s1_GlobeNames <- c("g1tr", "g1un1", "g1ac", "g1in", "g1tr1", "g1un2", "g1tr2", "g1ma", "g1po1", "g1un3", "g1tr3", "g2fu", "g2hu", "g2ag", "g2fu1", "g2hu1", "g2po2", "g2ag1", "g2ac1", "g2fu2", "g2hu2", "g2ma", "g2un", "g2hu3", "g2po3", "g2fu3", "g2hu4", "g2po4", "g2in", "g2ma1", "g2ac2", "g2fu4", "g2ac3", "g3in1", "g3in2", "g3ic1", "g3ic2", "g3ag1", "g3ag2", "g3ge", "g2po5", "g2po6", "g1un4")
+all_data2_factor_cols <- read_sav(here::here("data", "SWV2012.sav"))%>%
+  mutate(across(c("Nation33", "Language", "D_SX",  "D_FH",  "D_ME",  "D_FE"), haven::as_factor)) %>% 
+  select("Nation33", "Language", "D_SX",  "D_FH",  "D_ME",  "D_FE") %>% 
+  tibble()
 
+#attr(all_data2_spss$Nation33, "labels") 
+
+#Study1 pattern of Globe names, only pattern is similar the names don't exactly map on the same variables
+s1_GlobeNames <- c("g1igc1", "g1un1", "g1pf1", "g1ic1", "g1igc2", "g1un2", "g1igc3", "g1ge1", "g1po1", "g1un3", "g1igc4", "g2fu", "g2hu", "g2ass1", "g2fu1", "g2hu1", "g2po1", "g2ass2", "g2pf", "g2fu2", "g2hu2", "g2ge", "g2un3", "g2hu3", "g2po2", "g2fu3", "g2hu4", "g2po3", "g2ic2", "g2ge1", "g2pf2", "g2fu4", "g2pf3", "g3ic3", "g3ic4", "g3ic5", "g3ic6", "g3ass", "g3ass2", "g3ge", "g2po5", "g2po6", "g1un4")
+
+
+#Study2 Globe names, these are replaced with the names above to replicate the coding style from Study1
 s2_GlobeNames <- paste0("NO", 1:43)
 
 #tibble(s2_GlobeNames, s1_GlobeNames) %>% View()
@@ -64,22 +75,28 @@ all_vars_d <- tibble(all_vars = names(all_data2)) %>%
     mutate(
     domain = case_when(
       str_starts(all_vars, "ISM") ~ "Isms",
-      str_detect(all_vars, "^P\\d{1,2}") ~ "Personality",
+      str_detect(all_vars, "^P\\d{1,2}") ~ "Personality6",
       str_starts(all_vars, "TL") ~ "Tight_Lose",
-      str_starts(all_vars, "MT") ~ "Materialism",
+      str_starts(all_vars, "MT") ~ "Material",
       str_starts(all_vars, "AM") ~ "Amoralism",
       str_starts(all_vars, "IV") ~ "Fanaticism",
+      str_detect(all_vars, "^VAL\\d{1,2}$") ~ "Values", #Schwartz
       str_detect(all_vars, "^M\\d{1,2}$") ~ "Machiavellianism",
-      str_starts(all_vars, "EN") ~ "Ethnonational",
-      str_starts(all_vars, "IC") ~ "Indv_Collec",
+      str_detect(all_vars, "^EN") ~ "Ethnonational",
+      str_starts(all_vars, "IC") ~ "Indv_Collectivism",
       str_detect(all_vars, "^MF\\d{2}$") ~ "Moral_Foundations",
       str_starts(all_vars, "FV") ~ "Family_Values",
-      str_starts(all_vars, "PA") ~ "Prone_Aggr",
+      str_detect(all_vars, "^PA\\d{1,2}$") ~ "Prone_Aggr",
       str_starts(all_vars, "g1|g2|g3") ~ "Globe", 
       str_detect(all_vars, "^NO(?:4[4-9])$") ~ "Globe_extra", 
       str_starts(all_vars, "Ax") ~ "Social_Axioms",
+      #Duke Religiosity Index
+      str_detect(all_vars, "^DRI\\d{2}$") ~ "DRI",
       TRUE ~ all_vars
     ))
+
+
+  #all_vars_d %>% distinct(domain) %>% View()
 
 
 #get all item numbers for each domain
@@ -89,6 +106,8 @@ item_names <- \(domain_name){
   pull(all_vars)
   return(all_item_names)
 }
+
+
 
 compute_trait_score <- function(data, pos_items, rev_items = NULL) {
   if (is.null(rev_items)) {
@@ -108,15 +127,13 @@ compute_trait_score <- function(data, pos_items, rev_items = NULL) {
   }
 }
 
-all_vars_d %>% 
-  filter(domain == "Globe") %>% 
-  filter(all_vars == "MF01") %>% 
-  distinct(domain) %>% 
-  pull(domain)
-  pull(all_vars)
-  
-  
-  
+# all_vars_d %>% 
+#   filter(domain == "Globe") %>% 
+#   filter(all_vars == "MF01") %>% 
+#   distinct(domain) %>% 
+#   pull(domain)
+#   pull(all_vars)
+
 ```
 
 
@@ -130,7 +147,7 @@ EN6		My first loyalty is to the heritage of my ancestors, their language and the
 
 Here EN2 and EN5 should be appropriately reversed for more mono-cultural/mono-lingual nations but not for a country like India. A high agreement on these items would imply higher levels of EN. 
 
-```{r}
+```{r data2}
 # convert any input into a character string
 convert_to_char <- \(...) {
   expr <- enquos(...)
@@ -138,140 +155,419 @@ convert_to_char <- \(...) {
   return(char_vector)
 }
 
-#Globe names matching Study1 Globe name patterns 
+# data2 %>%
+#   count(country, sort = T) %>% View()
+#   summarise(across(everything(), ~sum(is.na(.)), .names = "missing_{.col}")) %>%
+#   pivot_longer(everything(), names_to = "variable", values_to = "missing_count") %>%
+#   mutate(variable = gsub("missing_", "", variable)) %>%
+#   arrange(desc(missing_count)) %>% View()
+# 
+# data2 %>% 
+#   select(-age) %>% 
+#    summarise(across(where(is.numeric), 
+#             list(min = ~min(., na.rm = TRUE), 
+#                  max = ~max(., na.rm = TRUE)))) %>%
+#   pivot_longer(everything(), 
+#                names_to = c("var_name", ".value"), 
+#                names_pattern = "(.*)_(.*)") %>%
+#   arrange(var_name) %>% #View()
+#    filter(min != 1 | max != 5) %>% View()
 
-
-all_data2 %>% 
-  select(
-    list_c(map(c("Isms","Globe", "Tight_Lose", "Materialism","Social_Axioms", "Amoralism", "Fanaticism", "Ethnonationalism", "Indv_Collec", "Prone_Aggr", "Family_Values","Personality6"),
-               item_names)))#%>% 
- # names()
-  
-
+data2 <- bind_cols(
+  all_data2_factor_cols,
+  all_data2 %>% 
+    select(D_AGE, 
+      list_c(map(c("Isms","Globe","Globe_extra", "Tight_Lose", "Material","Social_Axioms", "Amoralism", "Fanaticism", "Ethnonational", "Indv_Collectivism", "Prone_Aggr", "Values", "Family_Values","Personality6", "DRI", "Moral_Foundations", "Machiavellianism"), item_names)))
+) %>% 
+  rename("country" = "Nation33",
+         "language_admin" = "Language",
+         "sex" = "D_SX",
+         "family_home" = "D_FH", 
+         "mother_edu" = "D_ME", 
+         "father_edu" = "D_FE", 
+         "age" = "D_AGE") %>% 
+  #Retain countries with n >100 
+  group_by(country) %>%
+  filter(n() >= 100) %>%
+  ungroup() %>% 
+   # Drop rows with more than 10% missing data
+  #filter(rowSums(is.na(.)) / ncol(.) <= 0.1)
+#Rescale
+  mutate(across(c(
+    all_of(item_names("Values")),
+    all_of(item_names("Isms")),
+    all_of(item_names("Fanaticism")),
+    all_of(item_names("Machiavellianism")),
+    all_of(item_names("Moral_Foundations")),
+    all_of(item_names("Globe")),
+    all_of(item_names("Globe_extra")),
+    all_of(item_names("Prone_Aggr")),
+    all_of(item_names("Tight_Lose"))),
+      ~scales::rescale(., to = c(1, 5))))  %>% 
+mutate(
 #compute_trait_score(data, pos_items, rev_items)
 
     #Personality: pty6
 scP_Consc.indv = compute_trait_score(.,
-            dput(paste0("P", c(1,13,25))), 
-            dput(paste0("P", c(7,19,31))))
+            paste0("P", c(1,13,25)), 
+            paste0("P", c(7,19,31))),
 scP_Hon.indv = compute_trait_score(.,
-            dput(paste0("P", c(11,17,29, 38))), 
-            dput(paste0("P", c(5,23,35))))
+            paste0("P", c(11,17,29, 38)), 
+            paste0("P", c(5,23,35))),
 scP_Agree.indv = compute_trait_score(.,
-            dput(paste0("P", c(8,32))), 
-            dput(paste0("P", c(2,14,20,26))))
+            paste0("P", c(8,32)), 
+            paste0("P", c(2,14,20,26))),
 scP_Res.indv = compute_trait_score(.,
-            dput(paste0("P", c(12,36))), 
-            dput(paste0("P", c(6,18,24,30))))
+            paste0("P", c(12,36)), 
+            paste0("P", c(6,18,24,30))),
 scP_Extra.indv = compute_trait_score(.,
-            dput(paste0("P", c(3,15,27,37))), 
-            dput(paste0("P", c(9,21,33,40))))
+            paste0("P", c(3,15,27,37)), 
+            paste0("P", c(9,21,33,40))),
 scP_Vir.indv = compute_trait_score(.,
-            dput(paste0("P", c(10,16,22,34,39))), 
-            dput(paste0("P", c(4,28))))
+            paste0("P", c(10,16,22,34,39)),
+            paste0("P", c(4,28))),
 
    #Moral Foundations
 scC_MFQ_Harm.indv = compute_trait_score(.,
-   c("MF01",	"MF07",	"MF12",	"MF18"))
+   c("MF01","MF07","MF12","MF18")),
 scC_MFQ_Fairness.indv = compute_trait_score(.,
-   c("MF02","MF08","MF13","MF19"))
+   c("MF02","MF08","MF13","MF19")),
 scC_MFQ_Loyalty.indv = compute_trait_score(., 
-   c("MF03",	"MF09",	"MF14",	"MF20"))
+   c("MF03","MF09","MF14","MF20")),
 scC_MFQ_Authority.indv = compute_trait_score(.,
-   c("MF04","MF10","MF15","MF21"))
+   c("MF04","MF10","MF15","MF21")),
 scC_MFQ_Purity.indv = compute_trait_score(.,
-   c("MF05",	"MF11",	"MF16",	"MF22"))
+   c("MF05","MF11","MF16","MF22")),
 
    #Personality: pty2
-Big2SocialSelfReg10
-Big2Dynamism10
+# Big2SocialSelfReg10
+# Big2Dynamism10
     
-  #Cognitive: Social Axioms
+    #Cognitive: Social Axioms
+  # Social Cynicism
 scC_SocAx_Cynicism.indv = compute_trait_score(.,
-   c("Ax5", "Ax12", "Ax16", "Ax23"))
+   c("Ax5", "Ax12", "Ax16", "Ax23")),
+  # Reward for Application
 scC_SocAx_RewardForApp.indv = compute_trait_score(.,
-   c("Ax4", "Ax9", "Ax13", "Ax21", "Ax28"))
+   c("Ax4", "Ax9", "Ax13", "Ax21", "Ax28")),
+  # Social Complexity
 scC_SocAx_Complexity.indv = compute_trait_score(.,
    c("Ax6", "Ax8", "Ax10", "Ax15", "Ax19", "Ax22", "Ax25",
-"Ax27", "Ax30")) 
+"Ax27", "Ax30")), 
+  # Fate Control
 scC_SocAx_FateControl.indv = compute_trait_score(.,
-   c("Ax1", "Ax7", "Ax11", "Ax14", "Ax24")) 
+   c("Ax1", "Ax7", "Ax11", "Ax14", "Ax24")), 
+  # Religiosity (importance of religion)
 scC_SocAx_Religiosity.indv = compute_trait_score(.,
    c("Ax2", "Ax3", "Ax17", "Ax18", "Ax20", "Ax26", "Ax29"
-)) 
+)), 
 
- #Individualism Collectivism
+      #Cognitive: Individualism Collectivism
 scC_IndvColl_CollecHori.indv = compute_trait_score(.,
-   c("IC14", "IC16", "IC4", "IC6")) 
+   c("IC14", "IC16", "IC4", "IC6")), 
 scC_IndvColl_CollecVert.indv = compute_trait_score(.,
-   c("IC10", "IC13", "IC2", "IC7")) 
+   c("IC10", "IC13", "IC2", "IC7")), 
 scC_IndvColl_IndivHori.indv = compute_trait_score(.,
-   c("IC1", "IC11", "IC5", "IC8")) 
+   c("IC1", "IC11", "IC5", "IC8")),
 scC_IndvColl_IndivVert.indv = compute_trait_score(.,
-   c("IC12", "IC15", "IC3", "IC9")) 
+   c("IC12", "IC15", "IC3", "IC9")),
+
+      #Cognitive: Family Values
+scC_FamValCohesion.indv = compute_trait_score(., c("FV02","FV04", "FV06", "FV08")),
+scC_FamValHierarchy.indv = compute_trait_score(., c("FV01","FV03", "FV05", "FV07" )),
+
+      #Cognitive: Schwartz Values
+  #Self-Transcendence: Universalism + Benevolence
+  scC_Value_SfTran.indv = compute_trait_score(.,c("VAL5", "VAL8")),
+
+  #Conservation: Conformity + Tradition + Security
+scC_Value_Consrv.indv = compute_trait_score(.,c("VAL4", "VAL1", "VAL7")),
+
+  #Self-enhancement: Achievement + Power
+scC_Value_SelfEnh.indv = compute_trait_score(.,c("VAL3", "VAL10")),
+
+  #Openness to Change: Stimulation + Self-direction
+scC_Value_OpnChg.indv = compute_trait_score(.,c("VAL9", "VAL2")),
+
+   #Fanaticism
+        scC_fntc.indv = compute_trait_score(.,
+     item_names("Fanaticism")[-c(4,6,17)],
+     item_names("Fanaticism")[c(4,6,17)]),
 
 
- #Family Values
-scC_FamValCohesion.indv = compute_trait_score(., c("FV02","FV04", "FV06", "FV08"))
-scC_FamValHierarchy.indv = compute_trait_score(., c("FV01","FV03", "FV05", "FV07" ))
-
-dput(convert_to_char())
-
-dput(convert_to_char())
+#dput(convert_to_char())
 
 # ISM1
 # ISM36
 # ISM40
 
-scC_Isms_TradRelig.indv = compute_trait_score(.,c("ISM12", "ISM17", "ISM22", "ISM35"), c("ISM14", "ISM16", "ISM30", "ISM8"))
+       #Cognitive: Isms
+  #Traditional Religiousness
+scC_Isms_TradRelig.indv = compute_trait_score(.,c("ISM12", "ISM17", "ISM22", "ISM35"), c("ISM14", "ISM16", "ISM30", "ISM8")),
+  # Unmitigated Self-Interest
+scC_Isms_UnmiSelfInt.indv = compute_trait_score(.,c("ISM11", "ISM3", "ISM32", "ISM4", "ISM41", "ISM42", "ISM46"), c("ISM21", "ISM26", "ISM7")),
+  # Communal Rationalism
+scC_Isms_CommRation.indv = compute_trait_score(.,c("ISM13", "ISM15", "ISM18", "ISM24", "ISM38", "ISM44"), c("ISM20", "ISM43")),
+  # Subjective Spirituality
+scC_Isms_SubjSpirit.indv = compute_trait_score(.,c("ISM10", "ISM39", "ISM5", "ISM6"), c("ISM2", "ISM23", "ISM25", "ISM27")),
+  # Inequality Aversion
+scC_Isms_IneqAver.indv = compute_trait_score(.,c("ISM28", "ISM29", "ISM31", "ISM34", "ISM45"), c("ISM19", "ISM33", "ISM37")),
 
-scC_Isms_UnmiSelfInt.indv = compute_trait_score(.,c("ISM11", "ISM3", "ISM32", "ISM4", "ISM41", "ISM42", "ISM46"), c("ISM21", "ISM26", "ISM7"))
-
-scC_Isms_CommRation.indv = compute_trait_score(.,c("ISM13", "ISM15", "ISM18", "ISM24", "ISM38", "ISM44"), c("ISM20", "ISM43"))
-
-scC_Isms_SubjSpirit.indv = compute_trait_score(.,c("ISM10", "ISM39", "ISM5", "ISM6"), c("ISM2", "ISM23", "ISM25", "ISM27"))
-
-scC_Isms_IneqAver.indv = compute_trait_score(.,c("ISM28", "ISM29", "ISM31", "ISM34", "ISM45"), c("ISM19", "ISM33", "ISM37"))
-
+  #Cognitive: Materialism
 scC_Material.indv = compute_trait_score(.,
-item_names("Materialism"))
+item_names("Material")),
 
-scC_Machiaveln.indv = compute_trait_score(., dput(paste0("M", c(1,2,4))), dput(paste0("M", c(3,5))))
+  #Cognitive: Machiavellianism
+scC_Machiaveln.indv = compute_trait_score(., paste0("M", c(1,2,4)), paste0("M", c(3,5))),
 
-scC_Prone_Aggr.indv = compute_trait_score(.,item_names("Prone_Aggr"))
+   #Cognitive: Proneness to Aggression - Honor
+scC_Prone_Aggr.indv = compute_trait_score(.,item_names("Prone_Aggr")),
 
-scC_Ethnonational.indv = compute_trait_score(., dput(paste0("EN", c(1,3,4,6))), dput(paste0("EN", c(2,5))))
+   #Cognitive: Ethnonationalism
+scC_Ethnonational.indv = compute_trait_score(., paste0("EN", c(1,3,4,6)), paste0("EN", c(2,5))),
 
-#CulturalTightness
-scC_Tightness.indv = compute_trait_score(., dput(paste0("TL0", c(1,2,3,5,6))), "TL04")
+  #Cognitive: Cultural Tightness
+scC_Tightness.indv = compute_trait_score(., paste0("TL0", c(1,2,3,5,6)), "TL04"),
 
+  #Cognitive: Amorialism
+scC_Amoralism.indv = compute_trait_score(., item_names("Amoralism")[-c(1,4,6,8,10,11,13)],
+ item_names("Amoralism")[c(1,4,6,8,10,11,13)]),
 
-# Duke Religion Index
-# Organizational activity
-scC_DRI_OrgRelgAc.indv =  compute_trait_score(., "DRI01")
+    #Cognitive: Duke Religion Index (DRI)
+    # Organizational activity
+scC_DRI_OrgRelgAc.indv =  compute_trait_score(., "DRI01"),
+    # Non-organizational activity 
+scC_DRI_NonOrgRelgAc.indv = compute_trait_score(., "DRI02"),
+    # Intrinsic religiosity
+scC_DRI_IntrnscRelg.indv = compute_trait_score(.,  paste0("DRI0", c(3,4,5))),
+    # Civic Multicultural Nationalism
+scC_CivicMCNational.indv = compute_trait_score(., "EN2", "EN5"),
 
-# Non-organizational activity 
-scC_DRI_NonOrgRelgAc.indv = compute_trait_score(., "DRI02")
-
-# Intrinsic religiosity
-scC_DRI_IntrnscRelg.indv = compute_trait_score(.,  dput(paste0("DR0", c(3,4,5))))
-
-#Civic Multicultural Nationalism
-scC_CivicMCNational.indv = compute_trait_score(., "EN2", "EN5")
-
-         # GLOBE
-    #InGroup Collectivism [in:individualism - low]
-scC_globe_in.indv = compute_trait_score(.,
-            str_subset(item_names("Globe"), "^g.*ic.*$"))
-
-    # Institutional Collectivism
-    # Performance Orientation
+      #Cognitive: GLOBE
+    #InGroup Collectivism 
+scC_globe_igc.indv = compute_trait_score(.,
+            str_subset(item_names("Globe"), "^g.*igc.*$")),
+   # Institutional Collectivism
+scC_globe_ic.indv = compute_trait_score(.,
+            str_subset(item_names("Globe"), "^g.*ic.*$")[-c(3,4)], str_subset(item_names("Globe"), "^g.*ic.*$")[c(3,4)]),
+    # Performance Orientation/Achievement
+scC_globe_pf.indv = compute_trait_score(.,
+            str_subset(item_names("Globe"), "^g.*pf.*$")[-4], 
+            str_subset(item_names("Globe"), "^g.*pf.*$")[4]),
     # Uncertainty Avoidance
+scC_globe_un.indv = compute_trait_score(.,
+            str_subset(item_names("Globe"), "^g.*un.*$")[-5], 
+            str_subset(item_names("Globe"), "^g.*un.*$")[5]),
     # Gender Egalitarian
-    # Power Distance
+scC_globe_ge.indv = compute_trait_score(.,
+            str_subset(item_names("Globe"), "^g.*ge.*$")[-c(1,2,4)], 
+            str_subset(item_names("Globe"), "^g.*ge.*$")[c(1,2,4)]),
+    # Power Distance,
+scC_globe_po.indv = compute_trait_score(.,
+            str_subset(item_names("Globe"), "^g.*po.*$")[-c(5,6)], 
+            str_subset(item_names("Globe"), "^g.*po.*$")[c(5,6)]),
     # Future Orientation
+scC_globe_fu.indv = compute_trait_score(.,
+            str_subset(item_names("Globe"), "^g.*fu.*$")[-c(3,4)], 
+            str_subset(item_names("Globe"), "^g.*fu.*$")[c(3,4)]),
     # Assertiveness
+scC_globe_ass.indv = compute_trait_score(.,
+            str_subset(item_names("Globe"), "^g.*ass.*$")[-c(2,3)], 
+            str_subset(item_names("Globe"), "^g.*ass.*$")[c(2,3)]),
     # Humane Orientation
+scC_globe_hu.indv = compute_trait_score(.,
+            str_subset(item_names("Globe"), "^g.*hu.*$"))
+) %>% 
+  mutate(pID = paste0("p", 1:nrow(.)), .before = everything())%>% 
+  
+  #compute community[here, country] scale scores
+  with_groups(country, 
+    mutate,
+    across(
+      # Select all pty and cog scaled scores  
+      contains(c( "scP", "scC")),
+      # Compute mean by country
+      ~mean(., na.rm = TRUE),
+      # Create new name [scP_Hon.indv -> scP_Hon.comm]
+      .names = "{str_remove(.col, '[.].*')}.comm"
+    )
+  )
+
+#Demographic variables
+table(data2$mother_edu)
+
+data2 %>% 
+mutate(
+    family_home = case_when(
+      family_home == "large city" ~ "urban",
+      family_home == "medium-sized city" ~ "urban",
+      family_home == "small town or village" ~ "rural",
+      family_home == "rural area" ~ "rural",
+      TRUE ~ as.character(family_home)
+    ),
+     mother_edu = case_when(
+    mother_edu %in% c("grade school or less", "some high school", "high school diploma") ~ "high_school",
+      str_detect(mother_edu, "don't know") ~ NA_character_,
+      
+      TRUE ~ "higher_edu"))  %>% 
+  select(family_home, mother_edu)
+
+
+names(data2)
+data2 %>% 
+  count(country, sort= T) %>% 
+  print(n = 33)
+```
+
+
+```{r DescriptiveTable}
+#| label: tbl-descriptive
+#| tbl-cap: "Descriptive statistics by Country"
+
+data2 %>% 
+  group_by(country) %>% 
+  summarize(mean_age = mean(age, na.rm=TRUE),
+            percent.male = mean(sex == "male", na.rm=TRUE)*100,
+            N = n()) %>% 
+  arrange(desc(N)) %>% 
+  kable(format = "latex", 
+        col.names = c("Country", "Mean Age", "% Male", "Sample Size"), 
+        booktabs = TRUE)
+```
+
+```{r funs.-model_CNI}
+#FUNCTIONS for computing CNIs
+ #Note: 1 here inidcates study 1
+
+#item names for CNI type
+get_item_names <- \(CNI_type, data) {
+  domains <- switch(CNI_type,
+    "cog" = c("Isms", "Fanaticism", "Social_Axioms", "Values", "Tight_Lose", "Material", "Amoralism", "Ethnonational", "Indv_Collectivism", "Globe", "Globe_extra", "Moral_Foundations", "Family_Values","Machiavellianism","Prone_Aggr"),
+    "pty6" = c("Personality6"),
+    "Fanaticism" =c("Fanaticism"),
+    "Isms" =c("Isms"),
+    "Globe" =c("Globe"),
+    "Globe_extra" =c("Globe", "Globe_extra"),
+    "Moral_foundations" =c("Moral_Foundations"),
+    "Social_Axioms" = c("Social_Axioms"),
+
+    stop("CNI type not found")
+  )
+  
+  item_names <- data %>% 
+    filter(domain %in% domains) %>% 
+    pull(all_vars)
+  
+  if (length(item_names) == 0) {
+    warning("No items found for the specified domains")
+  }
+  
+  return(item_names)
+} 
+
+#ipsatize/standardize scores
+ipsatize <- \(x){
+  value <- (x-mean(x, na.rm=T))/(sd(x, na.rm=T)) 
+  return(value)
+} 
+
+#compute z_profiles for pID
+compute_profiles <- \(var_names){
+#compute mean country profiles
+country_profiles <- data2 %>% 
+  group_by(country) %>%
+  summarise(
+    across(all_of(var_names), ~mean(.x, na.rm = TRUE), .names = "avg_{.col}"),#variables for cogCNI
+   n_p = n())%>% # number of participants) 
+  ungroup() %>% 
+  #retain participants who have responded to at least 30 items.- all countries have n_p>30
+  filter(n_p>=30) %>% 
+   pivot_longer(
+    cols = starts_with("avg_"),
+    #item names stored in item
+    names_to = "item",
+    values_to = "ctry_response"
+  ) %>% 
+   mutate(item = str_remove(item, "avg_")) %>% 
+ungroup()
+
+self.ctry_profiles <-  data2 %>%
+  select(all_of(var_names), pID, country) %>%
+  pivot_longer(names_to = "item",
+               values_to = "response",
+               cols = all_of(var_names)) %>% 
+  filter(!is.na(response)) %>%
+  left_join(country_profiles, by = c("country", "item")) %>%
+   filter(!is.na(ctry_response)) %>%
+# ipsatize responses within profile 
+  with_groups(pID, mutate, across(
+    # mutate self-rating and mean country profiles for each pID at once
+  contains("response"),
+  # with the ipsatize function ,
+  ipsatize,
+  # create new name
+.names = "z_{.col}")) 
+
+overallM_profiles <- self.ctry_profiles %>% 
+  select(item, z_response) %>%
+  filter(!is.na(z_response)) %>%
+  group_by(item) %>%
+  summarise(overall.M = mean(z_response)) %>% 
+  ungroup() 
+
+
+return(lst(self.ctry_profiles, overallM_profiles)) #set_names() to the input object names
+
+} 
+```
+
+```{r}
+#get all item names for CNI types
+cogCNI_items <- get_item_names("cog", all_vars_d)
+pty6CNI_items <- get_item_names("pty6", all_vars_d)
+ismCNI_items <- get_item_names("Isms", all_vars_d)
+fantcCNI_items <- get_item_names("Fanaticism", all_vars_d)
+globeCNI_items <- get_item_names("Globe", all_vars_d)
+globeExCNI_items <- get_item_names("Globe_extra", all_vars_d)
+mfCNI_items <- get_item_names("Moral_foundations", all_vars_d)
+socAxCNI_items <- get_item_names("Social_Axioms", all_vars_d)
+
+#compute pofiles for each CNI type
+cogCNI_profiles <- compute_profiles(cogCNI_items)
+pty6CNI_profiles <- compute_profiles(pty6CNI_items)
+ismCNI_profiles <- compute_profiles(ismCNI_items)
+fantcCNI_profiles <- compute_profiles(fantcCNI_items)
+globeCNI_profiles <- compute_profiles(globeCNI_items)
+globeExCNI_profiles <- compute_profiles(globeExCNI_items)
+mfCNI_profiles <- compute_profiles(mfCNI_items)
+socAxCNI_profiles <- compute_profiles(socAxCNI_items)
+```
+
+```{r DONT-RUN-fit-all-cni-mods, eval=FALSE, echo=TRUE}
+
+#computing CNI
+add_CNIformula <- \(data){
+  lmer(z_response ~ z_ctry_response + overall.M + (-1 + z_ctry_response|country/pID), data = data)
+  }
+
+cogCNI_mod <- cogCNI_profiles$self.ctry_profiles %>% 
+  full_join(cogCNI_profiles$overallM_profiles, by = "item") %>% add_CNIformula(.)
+  
+pty6CNI_mod <- pty6CNI_profiles$self.ctry_profiles %>% 
+  full_join(pty6CNI_profiles$overallM_profiles, by = "item") %>% add_CNIformula(.)
+
+
+ismCNI_mod <- ismCNI_profiles$self.ctry_profiles %>% 
+  full_join(ismCNI_profiles$overallM_profiles, by = "item") %>% add_CNIformula(.)
+
+fantcCNI_mod <- fantcCNI_profiles$self.ctry_profiles %>% 
+  full_join(fantcCNI_profiles$overallM_profiles, by = "item") %>% add_CNIformula(.)
+
+globeCNI_mod <- globeCNI_profiles$self.ctry_profiles %>% 
+  full_join(globeCNI_profiles$overallM_profiles, by = "item") %>% add_CNIformula(.)
+
+globeExCNI_mod <- globeExCNI_profiles$self.ctry_profiles %>% 
+  full_join(globeExCNI_profiles$overallM_profiles, by = "item") %>% add_CNIformula(.)
 
 ```
 
