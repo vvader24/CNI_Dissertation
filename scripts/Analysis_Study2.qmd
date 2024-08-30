@@ -1,54 +1,59 @@
 ---
 title: "Cultural Normativity Index: Study 2"
-format: html
-editor: visual
+format: 
+   pdf:
+     mainfont: Times
+     mainfontoptions: 
+       - Numbers=OldStyle
+       - Ligatures=TeX
+     monofontoptions: Scale=0.9 
+     fontsize: 11.2pt
+     code-block-font-size: 9pt
+     toc: true
+     number-sections: true
+     number-depth: 3
+     section-divs: true
+     toc-depth: 3
+     secnumdepth: 3
+     execute:
+       warning: false
+       message: false
+     code-block-wrap: true
+     code-overflow: wrap
+     prefer-html: true
+     include-in-header: 
+       text: |
+         \usepackage[T1]{fontenc}
+     documentclass: article
+     geometry: margin=1in
+     papersize: letter
+     extra_dependencies: ["pdflscape", "booktabs", "longtable"]
+editor: source
 ---
 
 ```{r Libraries}
-library(tidyverse)
-library(rio)
-library(expss)
-library(scales)
-library(glue)
-library(rlang)
-library(kableExtra)
-library(tidyr)
-library(dplyr)
-library(stringr)
-library(psych)
-library(dplyr)
-library(tibble)
-library(here)
-library(haven) 
 
-#Measurement Invariance
-library(lavaan)
-library(semTools)
+#if (!require("pacman")) install.packages("pacman")
+#pacman::p_install() #for installing libraries 
 
-#plots
-library(patchwork)
-library(gridExtra)
-library(ggplot2)
-library(dplyr)
-library(grid)
-
-#mlm
-library(lme4)
-library(lmerTest)
-library(broom.mixed)
-
-#estimating slopes
-library(emmeans)
-library(marginaleffects)
-library(modelsummary)
+pacman::p_load(tidyverse, dplyr, rio, expss, scales, glue,
+               rlang, kableExtra, stringr, tibble, psych, here,
+               haven, parallel, tictoc, papaja, #wrangling and setup
+               patchwork,gridExtra, ggplot2, grid, #plots
+               lme4, lmerTest, broom.mixed, tidyr, #modeling - mlm
+               emmeans, marginaleffects, modelsummary, 
+               pbkrtest, car #model estimates
+               )  
+ 
 options(modelsummary_get = "easystats")
-library(pbkrtest)
-#install.packages("modelsummary")
 ```
 
-```{r}
+```{r data2-wrangle}
+
+#---Data import
 all_data2 <- import(here::here("data", "SWV2012.sav"), setclass = "tibble")
 
+#get all factor levels
 all_data2_factor_cols <- read_sav(here::here("data", "SWV2012.sav"))%>%
   mutate(across(c("Nation33", "Language", "D_SX",  "D_FH",  "D_ME",  "D_FE"), haven::as_factor)) %>% 
   select("Nation33", "Language", "D_SX",  "D_FH",  "D_ME",  "D_FE") %>% 
@@ -56,7 +61,10 @@ all_data2_factor_cols <- read_sav(here::here("data", "SWV2012.sav"))%>%
 
 #attr(all_data2_spss$Nation33, "labels") 
 
-#Study1 pattern of Globe names, only pattern is similar the names don't exactly map on the same variables
+
+#---Globe items rename
+
+#Study1 pattern of Globe names, only pattern is similar the names here don't exactly map on the same variables as in Study 1
 s1_GlobeNames <- c("g1igc1", "g1un1", "g1pf1", "g1ic1", "g1igc2", "g1un2", "g1igc3", "g1ge1", "g1po1", "g1un3", "g1igc4", "g2fu", "g2hu", "g2ass1", "g2fu1", "g2hu1", "g2po1", "g2ass2", "g2pf", "g2fu2", "g2hu2", "g2ge", "g2un3", "g2hu3", "g2po2", "g2fu3", "g2hu4", "g2po3", "g2ic2", "g2ge1", "g2pf2", "g2fu4", "g2pf3", "g3ic3", "g3ic4", "g3ic5", "g3ic6", "g3ass", "g3ass2", "g3ge", "g2po5", "g2po6", "g1un4")
 
 
@@ -68,7 +76,8 @@ s2_GlobeNames <- paste0("NO", 1:43)
 all_data2 <-  all_data2%>% 
   rename(!!!setNames(s2_GlobeNames, s1_GlobeNames)) 
 
-names(all_data2)
+
+#---Classify items for domains and compute scale scores for each domain
 
 #This ensures that the items are correctly classified within their respective  domains
 all_vars_d <- tibble(all_vars = names(all_data2)) %>%
@@ -108,7 +117,6 @@ item_names <- \(domain_name){
 }
 
 
-
 compute_trait_score <- function(data, pos_items, rev_items = NULL) {
   if (is.null(rev_items)) {
     # If no reverse items are specified, just sum the positive items
@@ -127,25 +135,7 @@ compute_trait_score <- function(data, pos_items, rev_items = NULL) {
   }
 }
 
-# all_vars_d %>% 
-#   filter(domain == "Globe") %>% 
-#   filter(all_vars == "MF01") %>% 
-#   distinct(domain) %>% 
-#   pull(domain)
-#   pull(all_vars)
-
 ```
-
-
-#Issues with measure of Ethnonationalism
-EN1		The homeland of my people is sacred because of its monuments to our ancestors and heroes.
-EN2		I value being a citizen of a nation that is diverse with more than one religion, language, and ethnicity.
-EN3		I honor the glorious heroes among my people who sacrificed themselves for our destiny and our heritage.
-EN4		My ancestors once lived in a golden age with glorious and beautiful achievements.
-EN5		Ours should be a plural nation celebrating diversity and allowing for many different cultures.
-EN6		My first loyalty is to the heritage of my ancestors, their language and their religion.
-
-Here EN2 and EN5 should be appropriately reversed for more mono-cultural/mono-lingual nations but not for a country like India. A high agreement on these items would imply higher levels of EN. 
 
 ```{r data2}
 # convert any input into a character string
@@ -155,24 +145,7 @@ convert_to_char <- \(...) {
   return(char_vector)
 }
 
-# data2 %>%
-#   count(country, sort = T) %>% View()
-#   summarise(across(everything(), ~sum(is.na(.)), .names = "missing_{.col}")) %>%
-#   pivot_longer(everything(), names_to = "variable", values_to = "missing_count") %>%
-#   mutate(variable = gsub("missing_", "", variable)) %>%
-#   arrange(desc(missing_count)) %>% View()
-# 
-# data2 %>% 
-#   select(-age) %>% 
-#    summarise(across(where(is.numeric), 
-#             list(min = ~min(., na.rm = TRUE), 
-#                  max = ~max(., na.rm = TRUE)))) %>%
-#   pivot_longer(everything(), 
-#                names_to = c("var_name", ".value"), 
-#                names_pattern = "(.*)_(.*)") %>%
-#   arrange(var_name) %>% #View()
-#    filter(min != 1 | max != 5) %>% View()
-
+#---Compute scale scores
 data2 <- bind_cols(
   all_data2_factor_cols,
   all_data2 %>% 
@@ -203,16 +176,19 @@ data2 <- bind_cols(
     all_of(item_names("Globe_extra")),
     all_of(item_names("Prone_Aggr")),
     all_of(item_names("Tight_Lose"))),
+    # rescale all items from 1 to 5 for easy comparison
       ~scales::rescale(., to = c(1, 5))))  %>% 
+
+  #-----[CNI ~ Continous moderators] -------#  
+  
 mutate(
 #compute_trait_score(data, pos_items, rev_items)
-
     #Personality: pty6
 scP_Consc.indv = compute_trait_score(.,
             paste0("P", c(1,13,25)), 
             paste0("P", c(7,19,31))),
 scP_Hon.indv = compute_trait_score(.,
-            paste0("P", c(11,17,29, 38)), 
+            paste0("P", c(11,17,29)), #, 38
             paste0("P", c(5,23,35))),
 scP_Agree.indv = compute_trait_score(.,
             paste0("P", c(8,32)), 
@@ -221,11 +197,21 @@ scP_Res.indv = compute_trait_score(.,
             paste0("P", c(12,36)), 
             paste0("P", c(6,18,24,30))),
 scP_Extra.indv = compute_trait_score(.,
-            paste0("P", c(3,15,27,37)), 
-            paste0("P", c(9,21,33,40))),
+            paste0("P", c(3,15,27)), #,37
+            paste0("P", c(9,21,33))), #,40
 scP_Vir.indv = compute_trait_score(.,
-            paste0("P", c(10,16,22,34,39)),
+            paste0("P", c(10,16,22,34)), #,39
             paste0("P", c(4,28))),
+
+   #Personality: pty2
+  #Social self-regulation
+ scP_Big2_SocialSelfReg.indv = (compute_trait_score(.,
+            paste0("P", c(5,8,9,25,30, 38)), 
+            paste0("P", c(6,7,14,19,23))))/10,
+ #Social Dynamism
+ scP_Big2_Dynamism.indv = (compute_trait_score(.,
+            paste0("P", c(10,15,34,36,37, 39, 24)), 
+            paste0("P", c(9,28,30,40))))/10,
 
    #Moral Foundations
 scC_MFQ_Harm.indv = compute_trait_score(.,
@@ -239,9 +225,6 @@ scC_MFQ_Authority.indv = compute_trait_score(.,
 scC_MFQ_Purity.indv = compute_trait_score(.,
    c("MF05","MF11","MF16","MF22")),
 
-   #Personality: pty2
-# Big2SocialSelfReg10
-# Big2Dynamism10
     
     #Cognitive: Social Axioms
   # Social Cynicism
@@ -294,12 +277,7 @@ scC_Value_OpnChg.indv = compute_trait_score(.,c("VAL9", "VAL2")),
      item_names("Fanaticism")[-c(4,6,17)],
      item_names("Fanaticism")[c(4,6,17)]),
 
-
 #dput(convert_to_char())
-
-# ISM1
-# ISM36
-# ISM40
 
        #Cognitive: Isms
   #Traditional Religiousness
@@ -311,7 +289,7 @@ scC_Isms_CommRation.indv = compute_trait_score(.,c("ISM13", "ISM15", "ISM18", "I
   # Subjective Spirituality
 scC_Isms_SubjSpirit.indv = compute_trait_score(.,c("ISM10", "ISM39", "ISM5", "ISM6"), c("ISM2", "ISM23", "ISM25", "ISM27")),
   # Inequality Aversion
-scC_Isms_IneqAver.indv = compute_trait_score(.,c("ISM28", "ISM29", "ISM31", "ISM34", "ISM45"), c("ISM19", "ISM33", "ISM37")),
+scC_Isms_IneqAver.indv = compute_trait_score(.,c("ISM19",  "ISM31", "ISM33", "ISM34", "ISM45"), c("ISM29", "ISM40")),
 
   #Cognitive: Materialism
 scC_Material.indv = compute_trait_score(.,
@@ -344,7 +322,7 @@ scC_DRI_IntrnscRelg.indv = compute_trait_score(.,  paste0("DRI0", c(3,4,5))),
 scC_CivicMCNational.indv = compute_trait_score(., "EN2", "EN5"),
 
       #Cognitive: GLOBE
-    #InGroup Collectivism 
+    #InGroup Collectivism
 scC_globe_igc.indv = compute_trait_score(.,
             str_subset(item_names("Globe"), "^g.*igc.*$")),
    # Institutional Collectivism
@@ -362,7 +340,7 @@ scC_globe_un.indv = compute_trait_score(.,
 scC_globe_ge.indv = compute_trait_score(.,
             str_subset(item_names("Globe"), "^g.*ge.*$")[-c(1,2,4)], 
             str_subset(item_names("Globe"), "^g.*ge.*$")[c(1,2,4)]),
-    # Power Distance,
+    # Power Distance
 scC_globe_po.indv = compute_trait_score(.,
             str_subset(item_names("Globe"), "^g.*po.*$")[-c(5,6)], 
             str_subset(item_names("Globe"), "^g.*po.*$")[c(5,6)]),
@@ -391,49 +369,70 @@ scC_globe_hu.indv = compute_trait_score(.,
       # Create new name [scP_Hon.indv -> scP_Hon.comm]
       .names = "{str_remove(.col, '[.].*')}.comm"
     )
-  )
+  ) %>% 
+  
+    #-----[CNI ~ Categorical moderators]------# 
 
 #Demographic variables
-table(data2$mother_edu)
-
-data2 %>% 
 mutate(
-    family_home = case_when(
-      family_home == "large city" ~ "urban",
-      family_home == "medium-sized city" ~ "urban",
-      family_home == "small town or village" ~ "rural",
-      family_home == "rural area" ~ "rural",
-      TRUE ~ as.character(family_home)
-    ),
-     mother_edu = case_when(
-    mother_edu %in% c("grade school or less", "some high school", "high school diploma") ~ "high_school",
-      str_detect(mother_edu, "don't know") ~ NA_character_,
-      
-      TRUE ~ "higher_edu"))  %>% 
-  select(family_home, mother_edu)
-
-
-names(data2)
-data2 %>% 
-  count(country, sort= T) %>% 
-  print(n = 33)
+  mother_edu = case_when(
+    str_detect(mother_edu, "don't know") ~ NA_character_,
+    TRUE ~ as.character(mother_edu)
+  ),
+  father_edu = case_when(
+    str_detect(father_edu, "don't know") ~ NA_character_,
+    TRUE ~ as.character(father_edu)
+  ),
+  age_group = case_when(
+    age >= 13 & age <= 17 ~ "13-17",
+    age >= 18 & age <= 25 ~ "18-25",
+    age >= 26 & age <= 35 ~ "26-35",
+    age >= 36 & age <= 45 ~ "36-45",
+    age >= 46 ~ "46+",
+    TRUE ~ NA_character_
+  ))%>%
+  relocate(age_group, .before = age)
 ```
 
-
-```{r DescriptiveTable}
+```{r DescriptiveTable, echo = F}
 #| label: tbl-descriptive
-#| tbl-cap: "Descriptive statistics by Country"
+#| tbl-cap: "Descriptive statistics for the whole sample"
 
-data2 %>% 
-  group_by(country) %>% 
-  summarize(mean_age = mean(age, na.rm=TRUE),
-            percent.male = mean(sex == "male", na.rm=TRUE)*100,
-            N = n()) %>% 
-  arrange(desc(N)) %>% 
-  kable(format = "latex", 
-        col.names = c("Country", "Mean Age", "% Male", "Sample Size"), 
-        booktabs = TRUE)
+data2 %>%
+  select(sex, age_group, family_home, mother_edu, father_edu, language_admin)  %>%
+  mutate(across(everything(), ~as.factor(.))) %>% 
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "category") %>%
+  group_by(variable, category) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  group_by(variable) %>%
+  mutate(
+    p = 100 * n / sum(n),
+    sample = paste0(n, " (", papaja::printnum(p), "\\%)")) %>%
+  ungroup() %>% 
+  select(-n, -p) %>%
+  #arrange(variable, category) %>%     
+  mutate(
+   category = if_else(is.na(category), "missing",     
+       as.character(category)),
+   variable = factor(variable, levels = c("sex", "age_group", "family_home", "mother_edu", "father_edu", "language_admin"))
+  ) %>%
+  arrange(variable) %>% 
+  dplyr::select(-variable) %>% 
+kable(longtable = T,
+format = "latex",
+align = c("l", "c", "c"), escape = FALSE,
+col.names = c("Variable", "$\\textit{n}$ (\\%)"),
+booktabs = TRUE) %>%
+kable_styling(latex_options = c("repeat_header")) %>%
+group_rows("Sex", 1, 3) %>%
+group_rows("Age", 4, 8) %>%
+group_rows("Family Home", 9, 13) %>%
+group_rows("Mother's Education", 14, 23) %>%
+group_rows("Father's Education", 24, 33) %>%
+group_rows("Language of Administration", 34, 51) 
 ```
+
+## CNI models - all types
 
 ```{r funs.-model_CNI}
 #FUNCTIONS for computing CNIs
@@ -521,7 +520,7 @@ return(lst(self.ctry_profiles, overallM_profiles)) #set_names() to the input obj
 } 
 ```
 
-```{r}
+```{r profiles}
 #get all item names for CNI types
 cogCNI_items <- get_item_names("cog", all_vars_d)
 pty6CNI_items <- get_item_names("pty6", all_vars_d)
@@ -556,7 +555,6 @@ cogCNI_mod <- cogCNI_profiles$self.ctry_profiles %>%
 pty6CNI_mod <- pty6CNI_profiles$self.ctry_profiles %>% 
   full_join(pty6CNI_profiles$overallM_profiles, by = "item") %>% add_CNIformula(.)
 
-
 ismCNI_mod <- ismCNI_profiles$self.ctry_profiles %>% 
   full_join(ismCNI_profiles$overallM_profiles, by = "item") %>% add_CNIformula(.)
 
@@ -569,5 +567,1318 @@ globeCNI_mod <- globeCNI_profiles$self.ctry_profiles %>%
 globeExCNI_mod <- globeExCNI_profiles$self.ctry_profiles %>% 
   full_join(globeExCNI_profiles$overallM_profiles, by = "item") %>% add_CNIformula(.)
 
+mfCNI_mod <- mfCNI_profiles$self.ctry_profiles %>% 
+  full_join(mfCNI_profiles$overallM_profiles, by = "item") %>% add_CNIformula(.)
+
+socAxCNI_mod <- socAxCNI_profiles$self.ctry_profiles %>% 
+  full_join(socAxCNI_profiles$overallM_profiles, by = "item") %>% add_CNIformula(.)
 ```
+
+```{r save-CNImods, echo = F, eval = F}
+save(cogCNI_mod, pty6CNI_mod, ismCNI_mod, fantcCNI_mod, globeCNI_mod, globeExCNI_mod, mfCNI_mod, socAxCNI_mod, 
+     file = here("objects/Study2/all_CNI.mods_study2.Rdata"))
+```
+
+```{r load-CNImods, echo = F}
+load(here("objects/Study2/all_CNI.mods_study2.Rdata"))
+```
+
+
+## CNI - heterogeneity
+
+```{r fun.-heterogeneity}
+# Function to calculate heterogeneity
+compute_heterogeneity <- function(data) {
+  # Compute correlation matrix once - memory efficient
+  cor_matrix <- cor(data, use = "pairwise.complete.obs")
+  
+  pca_rotation <- function(rotation) {
+    # Perform PCA using correlation matrix
+    pca <- principal(cor_matrix, nfactors = ncol(data), rotate = rotation, covar = FALSE)
+    
+    # Calculate cumulative variance explained
+    cumulative_var <- cumsum(pca$values) / sum(pca$values)
+    
+    # Find number of factors needed to explain at least 50% variance
+    heterogeneity <- which(cumulative_var >= 0.5)[1]
+    
+    return(heterogeneity)
+  }
+  
+  # Perform parallel analysis using correlation matrix
+  pa_result <- fa.parallel(cor_matrix, n.obs = nrow(data), fa = "fa", fm = "minres", show.legend = FALSE, plot = FALSE)
+  
+  tibble(
+    n_items = ncol(data),
+    pa = pa_result$nfact,
+    pca_50 = pca_rotation("none")
+  )
+}
+
+```
+
+```{r DONT-RUN-compute-heterogeneity, eval = F}
+heterogeneity_stats <- map_dfr(
+  list(
+   Cognitive = select(data2, 
+               get_item_names("cog",
+                              all_vars_d)),
+  Globe = select(data2,
+                get_item_names("Globe",
+                              all_vars_d)),
+   Globe = select(data2,
+                get_item_names(c("Globe_extra"),
+                              all_vars_d)),
+   Isms = select(data2,
+                get_item_names("Isms",
+                              all_vars_d)),
+   Fanaticism = select(data2,
+                get_item_names("Fanaticism",
+                              all_vars_d)),
+   Moral_foundations = select(data2,
+                get_item_names("Moral_foundations",
+                              all_vars_d)),
+     Social_Axioms = select(data2,
+                get_item_names("Social_Axioms",
+                              all_vars_d)),
+   Personality6 = select(data2,
+                get_item_names("pty6",
+                              all_vars_d))
+
+  
+),
+ compute_heterogeneity, .id = "cni_type"
+)
+```
+
+```{r save-compute-heterogeneity, echo = F, eval = F}
+save(heterogeneity_stats, 
+     file = here("objects/Study2/heterogeneity_stats_study2.Rdata"))
+```
+
+```{r load-compute-heterogeneity, echo = F}
+load(here("objects/Study2/heterogeneity_stats_study2.Rdata"))
+```
+
+```{r tbl-heterogeneity}
+heterogeneity_stats %>% 
+   mutate(cni_type = str_replace_all(cni_type, "_", " ")) %>% 
+  kable(booktabs = T, 
+        escape = F,
+        format = "latex",
+        col.names = c("CNI type", "No. items", "Parallel analysis", "PCA"),
+        caption = "Model complexity") %>% 
+  kable_styling() %>% 
+     group_rows("Cognitive", 1, 7) %>%
+     group_rows("Personality", 8, 8) 
+```
+
+```{r plot-heterogeneity}
+heterogeneity_stats %>%
+  pivot_longer(cols = c(pa, pca_50), names_to = "metric", values_to = "value") %>%
+  mutate(x_label = paste0(cni_type, "\n(", n_items, " items)")) %>% 
+# Create the plot
+ggplot(., aes(x = x_label, y = value, color = metric, group = metric)) +
+  geom_line() +
+  geom_point(size = 3) + 
+  scale_color_manual(values = c("pa" = "#e78f8e", "pca_50" = "#93bfa6"),
+                     labels = c("pa" = "Parallel Analysis", "pca_50" = "PCA 50%"),
+                     name = "Metric") +
+  labs(title = "Model Complexity Measures Across CNI Types",
+       x = "CNI Type",
+       y = "Number of Factors") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "bottom")
+
+```
+
+## CNI plots
+
+```{r fun.-plot_CNI}
+#Functions
+#model1_est = tidy(model1, conf.int = T)
+
+#this function does not work with map for some reason, the color mapping does not work!! 
+plot_CNI <- function(model_obj) {
+  # Get the name of the object passed to the function
+  obj_name <- deparse(substitute(model_obj))
+  
+  # Extract the title (everything before the underscore)
+  title <- str_extract(obj_name, "^[^_]+")
+  
+  # Define color mapping
+  color_map <- tibble(
+    mod_name = c("cogCNI", "ismCNI", "fantcCNI", "globeCNI", "globeExCNI", "mfCNI", "socAxCNI","pty6CNI"),
+    color = c("#0074B7","#6082B6", "#70d6ff", "#a0c4ff","#189AB4", "#6495ED", "#5D3FD3", "#ff70a6")
+  )
+  
+  # Determine the color based on the title
+  plot_color <- color_map %>% 
+    filter(str_detect(mod_name, title)) %>% 
+    pull(color)
+  
+  model_obj= ismCNI_mod
+  # Calculate slopes
+  mod_slopes <- slopes(model_obj, variables = "z_ctry_response", by = "pID")
+  
+  coefficient_plot <- mod_slopes %>%
+      ggplot(aes(x = reorder(pID, estimate), y = estimate)) +
+      geom_segment(aes(xend = pID,
+y = conf.low,yend = conf.high),
+                   alpha = .08 , color = plot_color) +
+      geom_point(size = .22, color = plot_color) +
+      scale_x_discrete(breaks = NULL) +
+      #coord_cartesian(ylim = c(-0.2, .92)) +
+      labs(x = "Participant", y = "CNI coefficient", title = title) +
+      theme_bw()
+  
+   hist_plot <- mod_slopes %>%
+    as.data.frame() %>%
+    ggplot(aes(x = estimate)) +
+    geom_histogram(binwidth = .01, color = "white", fill = plot_color) +
+    labs(x = "CNI coefficient", y = "Frequency", title = title) +
+    scale_x_continuous(limits = c(-0.3, 0.92))+
+    theme_bw()
+  
+  return(lst(coefficient_plot,hist_plot ))
+}
+```
+
+```{r  DONT-RUN-CNIplots, echo = T, eval = FALSE}
+#cogCNI_mod, pty6CNI_mod, ismCNI_mod, fantcCNI_mod, globeCNI_mod, globeExCNI_mod, mfCNI_mod, socAxCNI_mod
+
+cogCNI_plot <- plot_CNI(cogCNI_mod) 
+ismCNI_plot <- plot_CNI(ismCNI_mod) 
+globeCNI_plot <- plot_CNI(globeCNI_mod)
+globeExCNI_plot <- plot_CNI(globeExCNI_mod)
+fantcCNI_plot <- plot_CNI(fantcCNI_mod)
+mfCNI_plot <- plot_CNI(mfCNI_mod)
+socAxCNI_plot <- plot_CNI(socAxCNI_mod)
+pty6CNI_plot <- plot_CNI(pty6CNI_mod)
+```
+
+```{r save-CNImods_plots, echo = F, eval = F}
+save(cogCNI_plot, ismCNI_plot, globeCNI_plot, globeExCNI_plot, fantcCNI_plot, mfCNI_plot, socAxCNI_plot, pty6CNI_plot,  
+     file = here("objects/Study2/all_CNImods_plots_Study2.Rdata"))
+```
+
+```{r load-CNImods_plots, echo = F}
+#takes time to load
+load(here("objects/Study2/all_CNImods_plots_Study2.Rdata"))
+```
+
+```{r fun.-patch_CNIplots}
+patch_CNIplots <- \(plot_list, title){
+  
+  p1 <- plot_list$coefficient_plot & 
+  theme(plot.title = element_blank())
+  
+  p2 <- plot_list$hist_plot & 
+  theme(plot.title = element_blank())
+  
+  combined_plot <- p1 + p2 +
+    plot_annotation(title = title,
+    theme = theme(plot.title = element_text(hjust = 0.5)))
+  
+  return(combined_plot)
+}
+```
+
+```{r print-patch_CNIplots}
+# Create a list of plot objects and their corresponding titles
+CNIplot_data <- list(
+  list(plot = cogCNI_plot, title = "Cognitive CNI"),
+  list(plot = ismCNI_plot, title = "Isms-Cognitive CNI"),
+  list(plot = globeCNI_plot, title = "Globe-Cognitive CNI"),
+  list(plot = globeExCNI_plot, title = "Globe (Extra items)-Cognitive CNI"),
+  list(plot = fantcCNI_plot, title = "Fanaticism-Cognitive CNI"),
+  list(plot = mfCNI_plot, title = "Moral Foundations-Cognitive CNI"),
+  list(plot = socAxCNI_plot, title = "Social Axioms-Cognitive CNI"),
+  list(plot = pty6CNI_plot, title = "Personality6 CNI")
+)
+
+# Use walk to apply patch_CNIplots to each plot in the list and print quietly
+walk(CNIplot_data, ~ {
+  combined_plot <- patch_CNIplots(.x$plot, .x$title)
+  print(combined_plot)
+})
+```
+
+
+
+
+## CNI models summary
+
+```{r DONT-RUN-create-tbl-cni-mods, echo = T, eval = F}
+CNImods_table2 <- modelsummary(
+  list("Cognitive" = cogCNI_mod,
+       "Ism" = ismCNI_mod,
+       "Globe" = globeCNI_mod,
+       "Globe (Extra items)" = globeExCNI_mod,
+       "Fanaticism" = fantcCNI_mod,
+       "Moral Foundations" = mfCNI_mod,
+       "Social Axioms" = socAxCNI_mod,
+       "Big 6" = pty6CNI_mod), 
+             estimate = "{estimate}{stars}",
+             statistic = "[{conf.low}, {conf.high}]",
+            # group = group + term ~ model, 
+             coef_omit = "Intercept|^status",
+             coef_rename = c(
+              "z_ctry_response" = "CNI",
+               "overall.M" = "Overall Mean Profile",
+               "SD (z_ctry_response pIDcountry)" = "SD of CNI (across people)",
+               "SD (z_ctry_response country)" = "SD of CNI (across country)",
+               "SD (Observations)" = ""),
+             gof_map = c("nobs"), 
+             fmt = "%.2f",
+             title = "Cultural Normativity Index",
+             output = "kableExtra") %>% 
+  kable_styling() %>% 
+  add_header_above(c(" " = 1, 
+                     "\textbf{Cognitive}" = 7, 
+                     "\textbf{Personality}" = 1))
+```
+
+```{r save-CNItable, echo = F, eval = F}
+save(CNImods_table2,
+     file = here("objects/Study2/CNImods_table2.Rdata"))
+```
+
+```{r load-CNItable, echo = F}
+load(here("objects/Study2/CNImods_table2.Rdata"))
+```
+
+\begingroup
+\setlength{\LTleft}{0pt minus 500pt}
+\setlength{\LTright}{0pt minus 500pt}
+\fontsize{5pt}{7pt}\selectfont
+\addtolength{\tabcolsep}{-3pt}
+
+```{r}
+CNImods_table2
+```
+\endgroup
+
+## Country trends
+
+```{r DONT-RUN-cni.ctry-trends, eval=F, echo=T}
+#CNI country estimates from `slopes` (also can get CI's here) and `coef` (no CI's) are very close, both provide total effects (fixed+random)
+#cogCNI_mod_ctry.slopes <- slopes(cogCNI_mod , variables = "z_ctry_response", by = "country")
+
+all_mods_ctry.trends <- map_dfr(lst(
+  cogCNI_mod, ismCNI_mod, fantcCNI_mod, globeCNI_mod, globeExCNI_mod, mfCNI_mod, socAxCNI_mod, pty6CNI_mod), 
+                 ~slopes(., variables = "z_ctry_response", by = "country"), .id = "model") 
+
+#all_mods_ctry.trends %>% View()
+```
+
+```{r fun.-oneCoef-plot, echo = F, eval = F}
+#One coefficient plot at a time!
+plotCNI_ctry_trends <- \(slope_data){
+  
+  obj_name <- deparse(substitute(slope_data))
+  title <- str_extract(obj_name, "^[^_]+")
+  
+  plot <- slope_data %>% 
+  as_tibble() %>% 
+  select(country, estimate, conf.low, conf.high) %>% 
+   ggplot(aes(x = reorder(country,estimate), y = estimate)) +
+   geom_errorbar(aes(ymin = conf.low, ymax = conf.high),
+                color = "grey") +
+   geom_point() + 
+   scale_y_continuous(limits = c(0, 1)) +
+   labs(x = NULL, 
+        y = "CNI",
+        title = paste0(title, " estimates across countries")) +
+   coord_flip() +
+   theme_bw() +
+   theme(plot.title.position = "plot")
+  
+  return(plot)
+}
+#plotCNI_ctry_trends(cogCNI_mod_ctry.slopes)
+```
+
+```{r save-country-trends, echo = F, eval = F}
+save(all_mods_ctry.trends,
+     file = here("objects/Study2/CNI-ctry-trends2.Rdata"))
+```
+
+```{r load-country-trends, echo = F}
+load(here("objects/Study2/CNI-ctry-trends2.Rdata"))
+```
+
+```{r ctry-trends-2models-plot}
+all_mods_ctry.trends %>% 
+  as_tibble() %>% 
+  mutate(model = str_extract(model, "^[^_]+")) %>% 
+  filter(model %in% c("cogCNI", "pty6CNI")) %>% 
+  select(model, country, estimate, conf.low, conf.high) %>% 
+  ggplot(aes(x = reorder(country, estimate), y = estimate, 
+             color = model)) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high),
+                position = position_dodge(width = 0.5), 
+                width = 0.3) +
+  geom_point(position = position_dodge(width = 0.5), 
+             size = 1.7)+ 
+  scale_y_continuous(limits = c(0, 1)) +
+  scale_color_manual(values = c("cogCNI" = "#0074B7", 
+  "pty6CNI" = "#ff70a6")) + 
+  labs(x = NULL, 
+       y = "CNI",
+       title = "CNI estimates across countries",
+       color = "Model") +
+  coord_flip() +
+  theme_bw() +
+  theme(plot.title.position = "plot",
+        legend.position = "bottom")
+```
+
+```{r ctry-trends-8models-plot}
+#| fig-height: 12
+#| fig-width: 10
+#| out-width: "100%"
+
+all_mods_ctry.trends %>% 
+  as_tibble() %>% 
+  mutate(model = str_extract(model, "^[^_]+")) %>% 
+  select(model, country, estimate, conf.low, conf.high) %>%
+  mutate(alpha = ifelse(model %in% c("pty6CNI", "cogCNI"), 1, 0.5),
+         errorbar_size = ifelse(model %in% c("pty6CNI", "cogCNI"), .8, 0.4)) %>%
+  ggplot(aes(x = reorder(country, estimate), y = estimate, color = model, linetype = model)) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high, alpha = alpha, size = errorbar_size),
+                position = position_dodge(width = 0.5), width = 0.4) +
+  geom_point(aes(alpha = alpha), 
+             position = position_dodge(width = 0.5), 
+             size = 1.7) +
+  scale_y_continuous(limits = c(0, 1)) +
+  scale_color_manual(values = c("cogCNI" = "#0074B7", "ismCNI"  = "#6082B6", "fantcCNI"  = "#70d6ff", "globeCNI"  = "#a0c4ff", "globeExCNI"  = "#189AB4", "mfCNI"  = "#6495ED", "socAxCNI"  = "#5D3FD3", "pty6CNI" = "#ff70a6")) +
+  scale_alpha_identity() +
+  scale_size_identity() +
+  scale_linetype_manual(values = c("globeCNI"  ="dashed", "globeExCNI"  ="dashed","ismCNI"  ="dashed", "fantcCNI"  ="dashed",
+"mfCNI"  = "dashed", "socAxCNI"  = "dashed",
+     "cogCNI" = "solid", "pty6CNI" = "solid")) +
+  labs(x = NULL, y = "CNI", title = "CNI estimates across countries",
+       color = "Model") +
+  coord_flip() +
+  theme_bw() +
+  theme(plot.title.position = "plot",
+        legend.position = "bottom") +
+  guides(linetype = "none", alpha = "none", linewidth = "none")
+```
+
+
+
+
+
+## RQ 2: CNI ~ Personality Continuous moderators
+
+
+### Parallel Processing
+```{r fun.-cni-ContMod-effects}
+# Moderators here have to continuous, this won't work for categorical moderators
+#Explanation for function below
+      #[which CNI-type]:
+  #cni_profiles_data <- cogCNI_profiles1$self.ctry_profiles 
+      #[which moderator]:
+  #modtr_pattern <- "^scP.*indv$" (scP = pty; scC = cog)
+      #[causal relationship]:
+  #CNI <- Continuous moderator
+
+#This version of the function is specifically necessary for parallel processing! Here the modtr_patterns can be varied. The cognitive profiles are long and there are multiple moderators that need to be saved. This method works the best for this. 
+
+cni.ContMod_effects <- function(cni_profiles_data, modtr_pattern) {
+  
+  # Determine the level based on the modtr_pattern
+  level <- if(grepl("indv", modtr_pattern)) "Individual" else if(grepl("comm", modtr_pattern)) "Country" else "Unknown"
+
+  #right data format
+  cni.modtr_data <- data2 %>% 
+    #select moderator scales individual level (pID) scores 
+    #---$select moderators$ - specify regex
+    select(pID, matches(modtr_pattern)) %>% 
+    #mean centering the moderator score cols
+    #since this standardization is col-wise, running pty7 is not an issue
+    mutate_if(is.numeric, 
+              ~. - mean(., na.rm = TRUE)) %>% 
+    pivot_longer(-pID, 
+                 names_to = "modtr", #moderator name
+                 values_to = "modtr_score") %>% # moderator score
+    full_join(cni_profiles_data, by = c("pID"), relationship = "many-to-many")
+  
+  #CNI <- moderator
+  cni.modtr_models <- cni.modtr_data %>%
+    tidyr::nest(data = -modtr) %>%
+    mutate(
+      #cni ~ mod
+      mod.linear = map(data, ~lmer(z_response ~ z_ctry_response * modtr_score + (-1 + z_ctry_response | pID), data = .)),
+      #cni ~ mod + mod^2
+      mod.quadratic = map(data, ~lmer(z_response ~ z_ctry_response * modtr_score + z_ctry_response * I(modtr_score^2) + (-1 + z_ctry_response | pID), data = .)),
+      
+      #save results
+      tidy_mod.linear = map(mod.linear, tidy, conf.int = TRUE),
+      tidy_mod.quadratic = map(mod.quadratic, tidy, conf.int = TRUE)
+    )
+  
+  results_linear <- cni.modtr_models %>% 
+    select(modtr, tidy_mod.linear) %>% 
+    unnest(cols = c(tidy_mod.linear)) %>%
+    filter(term == "z_ctry_response:modtr_score") %>% 
+    select(modtr, term, estimate, conf.low, conf.high, p.value)
+  
+  results_quadratic <- cni.modtr_models %>% 
+    select(modtr, tidy_mod.quadratic) %>% 
+    unnest(cols = c(tidy_mod.quadratic)) %>%
+    filter(term == "z_ctry_response:I(modtr_score^2)") %>%
+    select(modtr, term, estimate, conf.low, conf.high, p.value)
+  
+  output <- bind_rows(
+    !!level := results_linear,
+    !!level := results_quadratic,
+    .id = "level"
+  )
+  
+  return(output)
+}
+
+```
+
+
+```{r table_contMods, echo=FALSE}
+df <- data.frame(
+  `Cognitive` = c(
+    "[45indv + 46comm]",
+    "cogCNI.cog",
+    "ismCNI.cog",
+    "globeCNI.cog",
+    "globeExCNI.cog",
+    "fantcCNI.cog",
+    "mfCNI.cog",
+    "socAxCNI.cog",
+    "pty6CNI.cog"
+  ),
+  `Personality` = c(
+    "[8indv + 8comm]",
+    "cogCNI.pty",
+    "ismCNI.pty",
+    "globeCNI.pty",
+    "globeExCNI.pty",
+    "fantcCNI.pty",
+    "mfCNI.pty",
+    "socAxCNI.pty",
+    "pty6CNI.pty"
+  )
+)
+
+table_contMods <- kable(df, format = "pipe", align = c("c", "c")) %>%
+  kable_styling(full_width = FALSE) %>%
+  row_spec(0, bold = TRUE) %>%
+  row_spec(1) %>%
+  add_header_above(c(" " = 2), bold = TRUE)
+```
+
+ 16 Tables for every CNI type 
+ 
+ `r table_contMods`
+
+
+Given the large _n_, especially for cogCNI profiles and the total number of moderators, it will be necessary to use parallel processing for this analysis. It significantly reduces computation time for multiple independent tasks.
+Instead of splitting the data itself, which is common in parallel processing, we split the list of individual difference variables (e.g., those matching the pattern "^scC.*indv$"). We create chunks of these variables, distributed across the number of cores - 1. The function `cni.ContMod_effects` function is applied to each variable in `var_names` simultaneously across different cores. Each core processes a different moderator variable independently.
+
+For the current study the hardware used involved 64GB RAM and 12 core processor, with the longest processing time for a model being 25mins (1529.822 sec elapsed). A motivated reader may choose to try to optimize this even further, in a more constrained environment. 
+
+```{r parallel-processing-contMod, echo = F, eval = F}
+# Load necessary libraries
+library(furrr)
+library(purrr)
+library(tictoc)
+
+# Set up parallel processing
+plan(multisession, workers = availableCores() - 1)
+
+tic()
+# Get the list of moderator variables
+patterns <- c("^scP.*indv$", "^scP.*comm$")
+var_names <- grep(paste(patterns, collapse = "|"), names(data2), value = TRUE)
+
+#checklist
+#1. check if the patterns are correct 
+    #["^scC" for cognitive moderators; "^scP" for personality moderators]
+#2.change the name of the object
+#3. change the data_profiles
+#4. save the object in Study 2
+
+# Parallel execution using furrr
+pty6CNI.pty_effects<- future_map_dfr(var_names, function(var) {
+  result <- cni.ContMod_effects(pty6CNI_profiles$self.ctry_profiles, var)
+  result$variable <- var  # Add the variable name to the result
+  return(result)
+}, .progress = TRUE)
+
+
+# Reset to sequential processing
+plan(sequential)
+toc()
+```
+
+```{r save-cni.ContMod-models, echo = F, eval = F}
+#checklist 
+#1. change name of the object  
+#2. DANGER: change name of the objet being saved
+#use the following to save each or collected chunks in the code above
+save(pty6CNI.pty_effects,
+     file = here("objects/Study2/pty6CNI.pty_effects.Rdata"))
+```
+
+
+```{r load-cni.ContMod-models, echo = F, results='hide'}
+
+# Define a vector of file names
+cni.contMod_object_names <- paste0(c(
+  "cogCNI.cog",
+  "cogCNI.pty",
+  "ismCNI.cog",
+  "ismCNI.pty",
+  "globeCNI.cog",
+  "globeCNI.pty",
+  "globeExCNI.cog",
+  "globeExCNI.pty",
+  "fantcCNI.cog",
+  "fantcCNI.pty",
+  "mfCNI.cog",
+  "mfCNI.pty",
+  "socAxCNI.cog",
+  "socAxCNI.pty",
+  "pty6CNI.cog",
+  "pty6CNI.pty"), "_effects.Rdata")
+
+# Set file paths and set names
+filepaths <- here("objects/Study2", cni.contMod_object_names) %>%
+  set_names(nm = basename(.) %>% tools::file_path_sans_ext())
+
+# Load all files
+all_cni.contMod_effects <- purrr::map(filepaths, ~get(load(.)))
+
+# Assign loaded objects to global environment - important!
+purrr::pmap(.l = list(.x = names(all_cni.contMod_effects), .y = all_cni.contMod_effects), .f = ~assign(.x, .y, envir = .GlobalEnv))
+
+# Verify that objects are now in the global environment
+#map_lgl(names(files), ~exists(.x, envir = .GlobalEnv))
+```
+
+Tables 
+
+```{r fun.-specify-var-names}
+#function to specify the correct variable names for all moderators [Pty + Cog + swb]
+specify_var_names <- \(data){
+  data %>% 
+    mutate(
+    modtr = case_when(
+      
+      #Personality
+      str_detect(modtr, "scP_Con") ~ "Conscientiousness",
+      str_detect(modtr, "Hon") ~ "Honesty",
+      str_detect(modtr, "Agr") ~ "Agreeableness",
+      str_detect(modtr, "Res") ~ "Resilience",
+      str_detect(modtr, "Ext") ~ "Extraversion",
+      str_detect(modtr, "Vir") ~ "Originality/Virtuosity",
+      str_detect(modtr, "SocialSelfReg") ~ "Social Self-Regulation",
+      str_detect(modtr, "Dynamism") ~ "Social Dynamism",
+      
+      #Cognitive 
+      
+             #Isms
+      str_detect(modtr, "Isms_TradRelig") ~ "Traditional Religiousness", 
+      str_detect(modtr, "Isms_UnmiSelfInt") ~ "Unmitigated Self-Interest",
+      str_detect(modtr, "CommRation") ~ "Communal Rationalism",
+      str_detect(modtr, "SubjSpirit") ~ "Subjective Spirituality",
+      str_detect(modtr, "IneqAver") ~ "Inequality Aversion",
+  
+         #GLOBE
+      str_detect(modtr, "globe_igc") ~ "InGroup Collectivism",   
+      str_detect(modtr, "globe_ic") ~ "Institutional Collectivism", 
+      str_detect(modtr, "globe_pf") ~ "Performance/Achievement Orientation",
+      str_detect(modtr, "globe_un") ~ "Uncertainty Avoidance", 
+      str_detect(modtr, "globe_ge") ~ "Gender Egalitarian",
+      str_detect(modtr, "globe_po") ~ "Power Distance",
+      str_detect(modtr, "globe_fu") ~ "Future Orientation",
+      str_detect(modtr, "globe_ass") ~ "Assertiveness",
+      str_detect(modtr, "globe_hu") ~ "Humane Orientation",
+    
+        #Social Axioms
+     str_detect(modtr, "SocAx_Cynicism") ~ "Social Cynicism",
+     str_detect(modtr, "SocAx_RewardForApp") ~ "Reward for Application", 
+     str_detect(modtr, "SocAx_Complexity") ~ "Social Complexity", 
+     str_detect(modtr, "SocAx_FateControl") ~ "Fate Control",
+  str_detect(modtr, "SocAx_Religiosity") ~ "Religiosity",
+  
+      #Moral Foundations
+      str_detect(modtr, "MFQ_Harm") ~ "Harm",
+      str_detect(modtr, "MFQ_Fairness") ~ "Fairness",
+      str_detect(modtr, "MFQ_Loyalty") ~ "Loyalty",
+      str_detect(modtr, "MFQ_Authority") ~ "Authority",
+      str_detect(modtr, "MFQ_Purity") ~ "Purity",
+  
+     #Individualism-Collectivism (Gelfland)
+  str_detect(modtr, "IndvColl_CollecHori") ~ "Horizontal Collectivism",
+  str_detect(modtr, "IndvColl_CollecVert") ~ "Vertical Collectivism",
+  str_detect(modtr, "IndvColl_IndivHori") ~ "Horizontal Individualism",
+  str_detect(modtr, "IndvColl_IndivVert") ~ "Vertical Individualism",
+  
+  #Family Values
+  str_detect(modtr, "FamValCohesion") ~ "Cohesion",
+  str_detect(modtr, "FamValHierarchy") ~ "Hierarchy",
+  
+  #Schwartz Values
+  str_detect(modtr, "Value_SfTran") ~ "Self Transcendence",
+    str_detect(modtr, "Value_Consrv") ~ "Conservation",
+  str_detect(modtr, "Value_SelfEnh") ~ "Self Enhancement",
+  str_detect(modtr, "Value_OpnChg") ~ "Openness to Change",
+   
+  #Fanaticism
+  str_detect(modtr, "fntc") ~ "Fanaticism",
+      
+  #Materialism
+  str_detect(modtr, "Material") ~ "Materialism",
+  
+  #Machiavellianism
+  str_detect(modtr, "Machiaveln") ~ "Machiavellianism",
+  
+  #Prone to Aggression (Honor)
+   str_detect(modtr, "Prone_Aggr") ~ "Prone to Aggression",
+  
+  #Ethnonationalism
+      str_detect(modtr, "Ethnonational") ~ "Ethnonationalism",
+  
+  #Tightness-Looseness
+      str_detect(modtr, "Tightness") ~ "Tightness",
+  
+  #Amoralism
+      str_detect(modtr, "Amoralism") ~ "Amoralism",
+  
+  #Duke Religiosity Index
+    str_detect(modtr, "DRI_OrgRelgAc") ~ "Organizational Religious Activity",
+    str_detect(modtr, "DRI_NonOrgRelgAc") ~ "Non-organizational Religious Activity",
+    str_detect(modtr, "DRI_IntrnscRelg") ~ "Intrinsic religiosity",
+      
+    #Civic Multicultural Nationalism
+      str_detect(modtr, "CivicMCNational") ~ "Civic Multicultural Nationalism",
+  
+      TRUE ~ modtr
+    )
+  ) 
+}
+```
+
+```{r fun.-cni.ContMod-effects-table}
+cni.ContMod_effects_table <- \(data, title){
+
+df1 <- data %>% 
+    #specify the correct variable/moderator name
+    specify_var_names()%>% 
+    mutate(
+    p.value = map_chr(p.value, papaja::printp),
+    across(where(is.numeric), ~ round(., 3)),
+  ci = paste0("[", conf.low, ", ", conf.high,"]"),
+         term = ifelse(str_detect(term, "2"), "Quadratic", "Linear"),
+    estimate = as.character(estimate) 
+  ) %>% 
+  select(level, modtr, term, estimate, ci, p.value) %>% 
+  pivot_longer(cols = c(estimate, ci, p.value),  names_to = "stat", values_to = "stat_value") %>% 
+  unite(term, term, stat) %>% 
+  pivot_wider(names_from = term, values_from = stat_value) %>% 
+  select(-level)
+
+ # Calculate the number of rows for each level
+no.modtrs <- df1 %>% 
+  distinct(modtr) %>% 
+  nrow()
+
+df1 %>% 
+  kable(booktabs = T,
+        longtable = T,
+        escape = F,
+        format = "latex",
+        col.names = c(" ", "Est", "95\\% CI", "p", "Est", "95\\% CI", "p"),
+        caption = title) %>% 
+  kable_styling() %>% 
+  add_header_above(c(" ", "Linear" = 3, "Quadratic" = 3)) %>% 
+     group_rows("Individual level", 1, no.modtrs) %>% 
+  group_rows("Country level", no.modtrs+1, no.modtrs*2) %>% 
+  kable_styling(latex_options = c("repeat_header")) 
+}
+```
+
+```{r results='asis'}
+#cni.ContMod_effects_table(mfCNI.cog_effects, "title")
+
+View(mfCNI.pty_effects)
+
+cni.ContMod_names <- tibble(objects = str_remove(cni.contMod_object_names, "\\.Rdata$")) %>% 
+   mutate(object_x = str_remove(objects, "_effects$")) %>% 
+  mutate(
+    part1 = str_split_fixed(object_x, "\\CNI.", 2)[,1],
+    part2 = str_split_fixed(object_x, "\\.", 2)[,2]
+  ) %>% 
+  mutate(part1 = case_when(
+     part1 == "cog" ~ "Cognitive",
+     part1 == "ism" ~ "Ism",
+     part1 == "globe" ~ "Globe",
+     part1 == "globeEx" ~ "Globe Extra",
+     part1 == "fantc" ~ "Fanaticism",
+     part1 == "mf" ~ "Moral Foundations",
+     part1 == "socAx" ~ "Social Axioms",
+     part1 == "pty6" ~ "Personality 6",
+     TRUE ~ part2),
+    
+    part2 = case_when(
+     part2 == "cog" ~ "Cognitive",
+     part2 == "pty" ~ "Personality",
+     TRUE ~ part2 )) %>% 
+  mutate(title = paste0(part1, " CNI ~ ", part2)) %>% 
+  select(objects, title)
+
+walk2(cni.ContMod_names$objects, cni.ContMod_names$title, function(obj, title) {
+  cat("\n\n")  
+  print(cni.ContMod_effects_table(get(obj), title))
+  cat("\n\n") 
+})
+```
+
+
+Plots
+```{r fun.-plot-cni.ContMod}
+cni.pty_effects_plot <-\(data, title){
+
+data %>% 
+  #only linear effects
+  filter(term == "z_ctry_response:modtr_score") %>% 
+  specify_var_names() %>% 
+  with_groups(modtr, ~ mutate(.x, avg_abs_estimate = mean(abs(estimate)))) %>% 
+  mutate(
+    modtr = fct_reorder(modtr, avg_abs_estimate, .desc = FALSE),
+    color = case_when(
+      modtr == "Conscientiousness" ~ "C",
+      modtr == "Honesty" ~ "H",
+      modtr == "Agreeableness" ~ "A",
+      modtr == "Resilience" ~ "R",
+      modtr == "Extraversion" ~ "E",
+      modtr == "Originality/Virtuosity" ~ "O",
+      TRUE ~ "Other"),
+    sig = case_when(
+      p.value < .05 & estimate > 0 ~ "Pos",
+      p.value < .05 & estimate < 0 ~ "Neg",
+      TRUE ~ "NOT")
+  ) %>%
+  ggplot(aes(x = modtr, y = estimate, fill = color, alpha = level)) +
+  geom_col(position = position_dodge(width = 0.8)) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), 
+                position = position_dodge(width = 0.8),
+                width = 0.25) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+ scale_fill_manual(values = c(
+   "C" = "#ff6f91",
+   "H" = "#377EB8",
+   "A" = "#008f7a",
+   "R" = "#e6d021",
+   "E" = "#d7573b",
+   "O" = "#c67533"
+ )) +
+  scale_alpha_manual(values = c("Individual" = 1, "Community" = 0.4)) +
+  labs(x = "Moderator", y = "Estimate",
+       title = title,
+       fill = "Trait", alpha = "Level") +
+  theme_bw() +
+  theme(legend.position = "bottom") +
+  coord_flip() +
+  guides(fill = "none")  
+}
+
+
+cni.cog_effects_plot <- function(data, title) {
+  #data %>%
+    all_cni.contMod_effects$cogCNI.cog_effects %>% 
+    filter(term == "z_ctry_response:modtr_score") %>%
+    specify_var_names() %>%
+    with_groups(modtr, ~ mutate(.x, avg_abs_estimate = mean(abs(estimate)))) %>% 
+    mutate(
+      modtr = fct_reorder(modtr, avg_abs_estimate, .desc = FALSE),
+      color = case_when(
+      modtr == "Isms_TradRelig" ~ "Isms",
+  modtr == "Isms_UnmiSelfInt" ~ "Isms",
+  modtr == "CommRation" ~ "Isms",
+  modtr == "SubjSpirit" ~ "Isms",
+  modtr == "IneqAver" ~ "Isms",
+  modtr == "globe_igc" ~ "Globe",
+  modtr == "globe_ic" ~ "Globe",
+  modtr == "globe_pf" ~ "Globe",
+  modtr == "globe_un" ~ "Globe",
+  modtr == "globe_ge" ~ "Globe",
+  modtr == "globe_po" ~ "Globe",
+  modtr == "globe_fu" ~ "Globe",
+  modtr == "globe_ass" ~ "Globe",
+  modtr == "globe_hu" ~ "Globe",
+  modtr == "Social Cynicism" ~ "Social Axioms",
+  modtr == "Reward for Application" ~ "Social Axioms",
+  modtr == "Social Complexity" ~ "Social Axioms",
+  modtr == "Fate Control" ~ "Social Axioms",
+  modtr == "Religiosity" ~ "Social Axioms",
+  modtr == "Harm" ~ "Moral Foundations",
+  modtr == "Fairness" ~ "Moral Foundations",
+  modtr == "Loyalty" ~ "Moral Foundations",
+  modtr == "Authority" ~ "Moral Foundations",
+  modtr == "Purity" ~ "Moral Foundations",
+  modtr == "Horizontal Collectivism" ~ "Individualism-Collectivism",
+  modtr == "Vertical Collectivism" ~ "Individualism-Collectivism",
+  modtr == "Horizontal Individualism" ~ "Individualism-Collectivism",
+  modtr == "Vertical Individualism" ~ "Individualism-Collectivism",
+  modtr == "Cohesion" ~ "Family Values",
+  modtr == "Hierarchy" ~ "Family Values",
+  modtr == "Self Transcendence" ~ "Schwartz Values",
+  modtr == "Conservation" ~ "Schwartz Values",
+  modtr == "Self Enhancement" ~ "Schwartz Values",
+  modtr == "Openness to Change" ~ "Schwartz Values",
+  modtr == "Fanaticism" ~ "Fanaticism",
+  modtr == "Material" ~ "Materialism",
+  modtr == "Machiaveln" ~ "Machiavellianism",
+  modtr == "Prone to Aggression" ~ "Prone to Aggression",
+  modtr == "Ethnonational" ~ "Ethnonationalism",
+  modtr == "Tightness" ~ "Tightness",
+  modtr == "Amoralism" ~ "Amoralism",
+  modtr == "DRI_OrgRelgAc" ~ "Duke Religiosity Index",
+  modtr == "DRI_NonOrgRelgAc" ~ "Duke Religiosity Index",
+  modtr == "DRI_IntrnscRelg" ~ "Duke Religiosity Index",
+  modtr == "CivicMCNational" ~ "Civic Multicultural Nationalism",
+        TRUE ~ "Other"  # Default case
+      ),
+      sig = case_when(
+        p.value < .05 & estimate > 0 ~ "Pos",
+        p.value < .05 & estimate < 0 ~ "Neg",
+        TRUE ~ "NOT"
+      )
+    ) %>% View()
+    ggplot(aes(x = modtr, y = estimate, fill = color, alpha = level)) +
+    geom_col(position = position_dodge(width = 0.8)) +
+    geom_errorbar(aes(ymin = conf.low, ymax = conf.high), position = position_dodge(width = 0.8), width = 0.25) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+    scale_fill_manual(values = c(
+      "Isms" = "#7F0000",
+      "Globe" = "#377EB8",
+      "Social Axioms" = "#4DAF4A",
+      "Moral Foundations" = "#984EA3",
+      "Individualism-Collectivism" = "#FF7F00",
+      "Family Values" = "#DAA520",
+      "Schwartz Values" = "#A65628",
+      "Fanaticism" = "#008f7a",
+      "Materialism" = "#F781BF",
+      "Machiavellianism" = "#999999",
+      "Prone to Aggression" = "#E41A1C",
+      "Ethnonationalism" = "#00FF00",
+      "Tightness-Looseness" = "#8B4513",
+      "Amoralism" = "#00FFFF",
+      "Duke Religiosity Index" = "#FF1493",
+      "Civic Multicultural Nationalism" = "#1E90FF"
+    )) +
+    scale_alpha_manual(values = c("Individual" = 1, "Community" = 0.4)) +
+    labs(x = "Moderator", y = "Estimate", title = title, fill = "Trait", alpha = "Level") +
+    theme_bw() +
+    theme(legend.position = "bottom") +
+    coord_flip()
+}
+```
+
+#"Moderating effects on CNI: Individual vs Community"
+
+
+```{r}
+all_cni.contMod_effects$cogCNI.cog_effects %>% 
+  cni.cog_effects_plot(., "cognitive CNI ~ cognitive")
+
+
+View(all_cni.contMod_effects$cogCNI.cog_effects)
+```
+
+#----make all tables----#
+
+## RQ 3: CNI ~ Personality Categorical moderators
+
+
+```{r table_catMods, echo=FALSE}
+library(knitr)
+library(kableExtra)
+
+df <- data.frame(
+  `All CNI Models` = c(
+    "[8]",
+    "cogCNI",
+    "ismCNI",
+    "globeCNI",
+    "globeExCNI",
+    "fantcCNI",
+    "mfCNI",
+    "socAxCNI",
+    "pty6CNI"
+  ),
+  `Categorical moderators` = c(
+    "[6]",
+    "sex",
+    "family_home",
+    "mother_edu",
+    "father_edu",
+    "age_group",
+    "language_admin",
+    "",
+    ""
+  )
+)
+
+table_catMods <- kable(df, format = "pipe", align = c("l", "l")) %>%
+  kable_styling(full_width = FALSE) %>%
+  row_spec(0, bold = TRUE) %>%
+  row_spec(1, italic = TRUE) %>%
+  add_header_above(c(" " = 2), bold = TRUE)
+```
+
+`r table_catMods`
+
+
+
+# cogCNI x Categorical moderators
+
+cogCNI being the most complex model, it required a different approach for running parallel processing. Here the models are computed first followed by assesing the contrasts between different groups. 
+
+```{r cogCNI.catMod-models}
+cni.CatMod_effects_models <- function(cni_profiles_data, modtr_cat) {
+  
+  #consists of self,ctry and overall.M profiles
+  joined_profiles <- pluck(cni_profiles_data, "self.ctry_profiles") %>%
+  left_join(pluck(cni_profiles_data, "overallM_profiles"), by = "item")
+
+  #right data format
+  cni.modtr_data <- data2 %>% 
+    #select moderator scales individual level (pID) scores 
+    select(pID, modtr_cat) %>% 
+    pivot_longer(-pID, 
+                 names_to = "modtr", #moderator name
+                 values_to = "modtr_score") %>% # moderator score
+    full_join(joined_profiles, by = c("pID"), relationship = "many-to-many")
+  
+  #CNI <- moderator
+  cni.modtr_model <- cni.modtr_data %>%
+      #cni ~ mod [linear]
+      lmer(z_response ~ z_ctry_response * modtr_score + overall.M + (-1 + z_ctry_response | pID), data = .)
+  
+  return(cni.modtr_model)
+}
+```
+
+```{r parallel-processing-cogCNI.catMod, echo = F, eval = F}
+# Hardware: 12 cores, 62GB RAM
+
+# Load necessary libraries
+library(furrr);library(purrr);library(tictoc)
+library(car)
+emm_options(pbkrtest.limit = 521388) #emtrends setting
+
+# Set up cores
+  plan(multisession, workers = availableCores() - 1)
+
+tic()
+# All categorical moderator variables
+  var_names <- c("sex", "age_group",
+                 "mother_edu","father_edu",
+                 "family_home")
+
+# Parallel execution using furrr
+  cogCNI.CatMod_effects_models<- future_map(var_names, function(var) {
+    result <- cni.CatMod_effects_models(cogCNI_profiles, var)
+    return(result)
+  }, .progress = TRUE) %>% 
+    set_names(var_names)
+  
+  cogCNI.CatMod_effects_models$father_edu %>% #object.size()
+    tidy() %>% 
+    object.size()
+
+
+# Reset to sequential processing
+plan(sequential)
+toc()
+
+#object diagnostics:
+  #library(pryr)
+  #rm(globeExCNI.cat_effects)
+  #object_size(fantcCNI.cat_effects)
+  #object_size(globeExCNI.cat_effects$father_edu)
+```
+
+```{r save-cog.cni.CatMod-models, echo = F, eval = F}
+#checklist 
+#1. change name of the object  
+#2. DANGER: change name of the object being saved
+#use the following to save each or collected chunks in the code above
+save(cogCNI.CatMod_effects_models,
+     file = here("objects/Study2/cogCNI.CatMod_effects_models.Rdata"))
+```
+
+```{r echo = F, eval=TRUE}
+load("~/Desktop/CNI_Dissertation/objects/Study2/cogCNI.CatMod_effects_models.Rdata")
+```
+
+```{r cogCNI.catMod-trends}
+cni.CatMod_effects_trends <- \(cni.modtr_model) {
+
+   #2. contrasts
+  trends <- emtrends(cni.modtr_model, pairwise ~ modtr_score,
+  var = "z_ctry_response",
+  adjust = "holm")
+  
+  return(trends)
+}
+cogCNI.CatMod_effects_trends <- map(cogCNI.CatMod_effects_models, cni.CatMod_effects_trends)
+```
+
+```{r fun.-sig_groups1, echo = FALSE}
+sig_groups1 <- \(df, var, cni_name, sig.only = FALSE) {
+
+  # Extract the part of cni_name before the first period
+  cni_name_cap <- str_extract(cni_name, "^[^.]+")
+  #age_group -> "Age group"
+  var_name_cap <- var %>%
+    str_replace_all("_", " ") %>%
+    str_to_title()
+
+    trends <- df %>% 
+      pluck(var, "contrasts") %>% 
+      as.data.frame()
+ 
+  
+  cap <-paste0("Significant differences in ", cni_name, " by ", var_name_cap, ".")
+  
+  if (sig.only) {
+    trends <- filter(trends, p.value < .05)
+     cap <-paste0("Significant differences in ", cni_name, " by ", var_name_cap, ".")
+  
+  }
+  
+  if (nrow(trends) > 0) {
+    trends %>% 
+      mutate(
+        p.value = papaja::printp(p.value),
+        across(where(is.numeric), printnum)
+      ) %>% 
+      select(-df) %>% 
+      kable(booktabs = T,
+            caption = cap,
+            longtable = T) %>% 
+      kable_styling(latex_options = c("repeat_header")) %>% 
+      column_spec(1, width = "5cm")
+  }
+}
+```
+
+```{r cogCNI.catMod-trends-plots, results='asis'}
+# Moderator names
+var_names <- c("sex", "age_group", "mother_edu", "father_edu", "family_home")
+
+# Print all the tables
+walk(var_names, function(var) {
+  cat("\n\n")
+  print(sig_groups1(cogCNI.CatMod_effects_trends, var, "cogCNI"))
+  cat("\n\n")
+})
+```
+
+
+```{r}
+#| include: false
+#knitr::opts_chunk$set(eval = FALSE)
+```
+
+Here one function computes the model, assesses the model fit using the Type III sum of squares (of interest is to what extent does the moderator interaction explain variability in the model, above and beyond other main and random effects). The significant contrasts for each model are retained. 
+
+```{r fun.-cni-CatMod-effects, echo= T, eval=F}
+#Explanation for function below
+      #[which CNI-type]:
+  #cni_profiles_data <- cogCNI_profiles1 [self.ctry_profiles,overallM_profiles] 
+      #[which moderator]:
+  # "sex","family_home","mother_edu","father_edu","age_group"    
+  #Model: CNI <- Categorical moderator
+
+#levels(factor(data2$father_edu)) #how many levels?
+#choose(9, 2) #check for number of contrasts
+
+#This version of the function is necessary for parallel processing! Moderators are varied. 
+
+cni.CatMod_effects <- function(cni_profiles_data, modtr_cat) {
+  
+  #consists of self,ctry and overall.M profiles
+  joined_profiles <- pluck(cni_profiles_data, "self.ctry_profiles") %>%
+  left_join(pluck(cni_profiles_data, "overallM_profiles"), by = "item")
+
+  #right data format
+  cni.modtr_data <- data2 %>% 
+    #select moderator scales individual level (pID) scores 
+    select(pID, modtr_cat) %>% 
+    pivot_longer(-pID, 
+                 names_to = "modtr", #moderator name
+                 values_to = "modtr_score") %>% # moderator score
+    full_join(joined_profiles, by = c("pID"), relationship = "many-to-many")
+  
+  #1. CNI <- moderator
+  cni.modtr_model <- cni.modtr_data %>%
+      #cni ~ mod [linear]
+      lmer(z_response ~ z_ctry_response * modtr_score + overall.M + (-1 + z_ctry_response | pID), data = .)
+      
+      #save results
+  #2. model fit   
+   model_fit <- Anova(cni.modtr_model, type = "III", test.statistic = "F") %>%                     tidy()
+   #3. contrasts
+   trends <- emtrends(cni.modtr_model, pairwise ~ modtr_score, 
+         var = "z_ctry_response", 
+         adjust = "holm") 
+      
+  
+  return(lst(model_fit,trends))
+}
+```
+
+```{r parallel-processing-catMods, echo = F, eval = F}
+#This code chunk is representative of the 
+# Hardware specifications: 12 cores, 62 GB RAM
+
+# Load necessary libraries
+library(furrr);library(purrr);library(tictoc)
+library(car)
+emm_options(pbkrtest.limit = 521388) #emtrends setting
+
+# Set up cores
+  plan(multisession, workers = availableCores() - 1)
+
+tic()
+# All categorical moderator variables
+  var_names <- c("sex", "age_group" , "mother_edu","father_edu",
+                 "family_home")
+
+#checklist
+#1. change the name of the object according to the CNI being used
+#2. change the data_profiles object name
+#3. save the object in Study 2
+  
+  #pty6
+
+# Parallel execution using furrr
+  pty6CNI.cat_effects<- future_map(var_names, function(var) {
+    result <- cni.CatMod_effects(pty6CNI_profiles, var)
+    return(result)
+  }, .progress = TRUE) %>% 
+    set_names(var_names)
+
+
+# Reset to sequential processing
+plan(sequential)
+toc()
+
+#object diagnostics:
+  #library(pryr)
+  #rm(globeExCNI.cat_effects)
+  #object_size(fantcCNI.cat_effects)
+  #object_size(globeExCNI.cat_effects$father_edu)
+```
+
+```{r save-cni.CatMod-models, echo = F, eval = F}
+#checklist 
+#1. change name of the object  
+#2. DANGER: change name of the object being saved
+#use the following to save each or collected chunks in the code above
+save(pty6CNI.cat_effects,
+     file = here("objects/Study2/pty6CNI.cat_effects.Rdata"))
+```
+
+```{r load-cni.CatMod-models, echo=F, eval=T, results='hide'}
+# Define a vector of file names
+cni.catMod_object_names <- paste0(c(
+  "ismCNI",
+  "globeCNI",
+  "globeExCNI",
+  "fantcCNI",
+  "mfCNI",
+  "socAxCNI",
+  "pty6CNI"), ".cat_effects.Rdata")
+
+# Set file paths and set names
+filepaths <- here("objects/Study2", cni.catMod_object_names) %>%
+  set_names(nm = basename(.) %>% tools::file_path_sans_ext())
+
+# Load all files
+all_cni.catMod_effects <- purrr::map(filepaths, ~get(load(.)))
+
+# Assign loaded objects to global environment - important!
+purrr::pmap(.l = list(.x = names(all_cni.catMod_effects), .y = all_cni.catMod_effects), .f = ~assign(.x, .y, envir = .GlobalEnv))
+
+# Verify that objects are now in the global environment
+#map_lgl(names(all_cni.catMod_effects), ~exists(.x, envir = .GlobalEnv))
+```
+
+```{r fun.-sig_groups2, results = 'asis', echo = FALSE}
+# Modify sig_groups2 function
+sig_groups2 <- function(CNI.cat_effects, var, cni_name, sig.only = FALSE) {
+   # Extract the part of cni_name before the first period
+  cni_name_cap <- str_extract(cni_name, "^[^.]+")
+  #age_group -> "Age group"
+  var_name_cap <- var %>%
+    str_replace_all("_", " ") %>%
+    str_to_title()
+  
+  trends <- CNI.cat_effects %>% 
+    #all_cni.catMod_effects %>% 
+    pluck(cni_name,var, "trends", "contrasts") %>% 
+    #pluck("ismCNI.cat_effects" , "age_group", "trends", "contrasts")
+    as.data.frame()
+
+  cap <-paste0("Significant differences in ", cni_name_cap, " by ", var_name_cap, ".")
+  
+  
+  if (sig.only) {
+    trends <- filter(trends, p.value < .05)
+    cap <-paste0("Significant differences in ", cni_name_cap, " by ", var_name_cap, ".")
+  }
+  
+  if (nrow(trends) > 0) {
+    trends %>% 
+      mutate(
+        p.value = papaja::printp(p.value),
+        across(where(is.numeric), printnum)
+      ) %>% 
+      select(-df) %>% 
+      kable(booktabs = T,
+            caption = cap,
+            longtable = T) %>% 
+      kable_styling(latex_options = c("repeat_header")) %>% 
+      column_spec(1, width = "5cm")
+  }
+}
+```
+
+```{r cni.catMod_effects_tables, results = 'asis'}
+# categorical moderators
+var_names <- c("family_home", "mother_edu", "father_edu", "age_group")
+
+# CNI names (adjust this list according to your needs)
+cni_names <- names(all_cni.catMod_effects)
+
+# Iterate over both cni_names and var_names
+walk(cni_names, function(cni) {
+  walk(var_names, function(var) {
+    result <- sig_groups2(all_cni.catMod_effects, var, cni)
+    if (!is.null(result)) {
+      print(result)
+      cat("\n\n")  # Add some space between tables
+    }
+  })
+})
+```
+
+
 

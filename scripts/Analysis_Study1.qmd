@@ -265,7 +265,8 @@ data1 <- all_data1 %>%
             str_subset(item_names("Globe"), "^g.*hu.*$")),
         #masculinity
         scC_globe_ma.indv = compute_trait_score(.,
-            str_subset(item_names("Globe"), "^g.*ma.*$")),
+            str_subset(item_names("Globe"), "^g.*ma.*$")[-3],
+            str_subset(item_names("Globe"), "^g.*ma.*$")[3]),
          #InGroupCollectivism
         scC_globe_gc.indv = compute_trait_score(.,
             str_subset(item_names("Globe"), "^g.*in.*$")),
@@ -274,7 +275,7 @@ data1 <- all_data1 %>%
             str_subset(item_names("Globe"), "^g.*po.*$")), 
          #future orientation
         scC_globe_fu.indv = compute_trait_score(.,
-            str_subset(item_names("Globe"), "^g.*fu.*$")), 
+            str_subset(item_names("Globe"), "^g.*fu.*$")[-c(3,4)], str_subset(item_names("Globe"), "^g.*fu.*$")[c(3,4)]), 
         
        #Fanaticism
         scC_fntc.indv = compute_trait_score(.,
@@ -338,7 +339,7 @@ data1 <- all_data1 %>%
 
 ```{r DescriptiveTable}
 #| label: tbl-descriptive
-#| tbl-cap: "Descriptive statistics by nation"
+#| tbl-cap: "Descriptive statistics by Country"
 
 data1 %>% 
   group_by(country) %>% 
@@ -509,12 +510,12 @@ Computing three types of CNI: - cogCNI: cognitive variables - pty6CNI: six perso
 #item names for CNI type
 get_item_names <- \(CNI_type, data) {
   domains <- switch(CNI_type,
-    "cogCNI" = c("Isms", "Fanaticism", "Social_Axioms", "Values", "Globe", "Failed_state_perception"),
-    "pty6CNI" = c("Personality6"),
-    "pty7CNI" = c("Personality6", "Personality7"),
-    "Fanaticism" =c("Fanaticism"),
-    "Isms" =c("Isms"),
-    "Globe" =c("Globe"),
+    "cog" = c("Isms", "Fanaticism", "Social_Axioms", "Values", "Globe", "Failed_state_perception", "Values"),
+    "pty6" = c("Personality6"),
+    "pty7" = c("Personality6", "Personality7"),
+    "Fanaticism" = c("Fanaticism"),
+    "Isms" = c("Isms"),
+    "Globe" = c("Globe")
     
     stop("CNI type not found")
   )
@@ -588,12 +589,13 @@ return(lst(self.ctry_profiles, overallM_profiles)) #set_names() to the input obj
 
 ```{r}
 #get all item names for CNI types
-cogCNI_items <- get_item_names("cogCNI", all_vars_d)
-pty6CNI_items <- get_item_names("pty6CNI", all_vars_d)
-pty7CNI_items <- get_item_names("pty7CNI", all_vars_d)
+cogCNI_items <- get_item_names("cog", all_vars_d)
+pty6CNI_items <- get_item_names("pty", all_vars_d)
+pty7CNI_items <- get_item_names("pty", all_vars_d)
 ismCNI_items <- get_item_names("Isms", all_vars_d)
 fantcCNI_items <- get_item_names("Fanaticism", all_vars_d)
 globeCNI_items <- get_item_names("Globe", all_vars_d)
+
 
 #compute pofiles for each CNI type
 cogCNI_profiles <- compute_profiles(cogCNI_items)
@@ -601,6 +603,7 @@ pty6CNI_profiles <- compute_profiles(pty6CNI_items)
 pty7CNI_profiles <- compute_profiles(pty7CNI_items)
 ismCNI_profiles <- compute_profiles(ismCNI_items)
 fantcCNI_profiles <- compute_profiles(fantcCNI_items)
+globeCNI_profiles <- compute_profiles(globeCNI_items)
 globeCNI_profiles <- compute_profiles(globeCNI_items)
 ```
 
@@ -885,7 +888,6 @@ load(here("objects/Study1/CNImods_table1.Rdata"))
 ```{r}
 #CHANGES: the titles have too many Cognitive and Personality terms, simplify that
 CNImods_table1 %>% 
-  #ADD this to the table in the .Rdata in the future
   add_header_above(c(" ", "Cognitive" = 4, "Personality" = 2))
 ```
 
@@ -999,7 +1001,7 @@ all_mods_ctry.trends %>%
   guides(linetype = "none")
 ```
 
-## RQ 2: cogCNI \~ ptyCNI
+## RQ 2: CNI ~ Continuous moderators
 
 ```{r fun.-cni-mod-effects}
 # Moderators here have to continuous, this won't work for categorical moderators
@@ -1061,7 +1063,7 @@ return(lst(cni.modtr_models, results_linear, results_quadratic))
 #   "^scP.*indv$") #moderators
 ```
 
-```{r}
+```{r fun.-cni.ContMod_effects_tblData}
 cni.ContMod_effects_tblData <- function(CNIprofile_data, variable_type) {
   if (variable_type == "personality") {
     var_pattern_indv <- "^scP.*indv$"
@@ -1099,6 +1101,48 @@ cni.ContMod_effects_tblData <- function(CNIprofile_data, variable_type) {
   return(table)
 }
 ```
+
+
+
+```{r fun.-cni.ContMod-effects-table}
+cni.ContMod_effects_table <- \(data, title){
+
+df1 <- data %>% 
+    #specify the correct variable/moderator name
+    specify_var_names()%>% 
+    mutate(
+    p.value = map_chr(p.value, papaja::printp),
+    across(where(is.numeric), ~ round(., 3)),
+  ci = paste0("[", conf.low, ", ", conf.high,"]"),
+         term = ifelse(str_detect(term, "2"), "Quadratic", "Linear"),
+    estimate = as.character(estimate) 
+  ) %>% 
+  select(level, modtr, term, estimate, ci, p.value) %>% 
+  pivot_longer(cols = c(estimate, ci, p.value),  names_to = "stat", values_to = "stat_value") %>% 
+  unite(term, term, stat) %>% 
+  pivot_wider(names_from = term, values_from = stat_value) %>% 
+  arrange(level) %>%
+  select(-level)
+
+ # Calculate the number of rows for each level
+no.modtrs <- df1 %>% 
+  distinct(modtr) %>% 
+  nrow()
+
+df1 %>% 
+  kable(booktabs = T, 
+        escape = F,
+        format = "latex",
+        col.names = c(" ", "Est", "95\\% CI", "p", "Est", "95\\% CI", "p"),
+        caption = title) %>% 
+  kable_styling() %>% 
+  add_header_above(c(" ", "Linear" = 3, "Quadratic" = 3)) %>% 
+     group_rows("Individual level", 1, no.modtrs) %>% 
+  group_rows("Country level", no.modtrs+1, no.modtrs*2) 
+ 
+}
+```
+
 
 ```{r fun.-specify-var-names}
 #function to specify the correct variable names for all moderators [Pty + Cog + swb]
@@ -1147,44 +1191,7 @@ specify_var_names <- \(data){
 }
 ```
 
-```{r fun.-cni.ContMod-effects-table}
-cni.ContMod_effects_table <- \(data, title){
 
-df1 <- data %>% 
-    #specify the correct variable/moderator name
-    specify_var_names()%>% 
-    mutate(
-    p.value = map_chr(p.value, papaja::printp),
-    across(where(is.numeric), ~ round(., 3)),
-  ci = paste0("[", conf.low, ", ", conf.high,"]"),
-         term = ifelse(str_detect(term, "2"), "Quadratic", "Linear"),
-    estimate = as.character(estimate) 
-  ) %>% 
-  select(level, modtr, term, estimate, ci, p.value) %>% 
-  pivot_longer(cols = c(estimate, ci, p.value),  names_to = "stat", values_to = "stat_value") %>% 
-  unite(term, term, stat) %>% 
-  pivot_wider(names_from = term, values_from = stat_value) %>% 
-  arrange(level) %>%
-  select(-level)
-
- # Calculate the number of rows for each level
-no.modtrs <- df1 %>% 
-  distinct(modtr) %>% 
-  nrow()
-
-df1 %>% 
-  kable(booktabs = T, 
-        escape = F,
-        format = "latex",
-        col.names = c(" ", "Est", "95\\% CI", "p", "Est", "95\\% CI", "p"),
-        caption = title) %>% 
-  kable_styling() %>% 
-  add_header_above(c(" ", "Linear" = 3, "Quadratic" = 3)) %>% 
-     group_rows("Individual level", 1, no.modtrs) %>% 
-  group_rows("Country level", no.modtrs+1, no.modtrs*2) 
- 
-}
-```
 
 ```{r DONT-RUN-cni.ContMod-effects, echo = F, eval = F}
 #CNI <- continuous moderator
