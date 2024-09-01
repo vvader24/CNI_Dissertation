@@ -15,6 +15,9 @@ format:
      section-divs: true
      toc-depth: 3
      secnumdepth: 3
+     lof: true
+     lot: true
+     lof-title: "List of Figures"
      execute:
        warning: false
        message: false
@@ -27,9 +30,13 @@ format:
      documentclass: article
      geometry: margin=1in
      papersize: letter
+     crossref:
+      fig-prefix: "Figure"
+      lof-title: "List of Figures"
      extra_dependencies: ["pdflscape", "booktabs", "longtable"]
 editor: source
 ---
+
 
 ```{r Libraries}
 
@@ -1203,7 +1210,7 @@ specify_var_names <- \(data){
          #GLOBE
       str_detect(modtr, "globe_igc") ~ "InGroup Collectivism",   
       str_detect(modtr, "globe_ic") ~ "Institutional Collectivism", 
-      str_detect(modtr, "globe_pf") ~ "Performance/Achievement Orientation",
+      str_detect(modtr, "globe_pf") ~ "Achievement Orientation", #Performance/
       str_detect(modtr, "globe_un") ~ "Uncertainty Avoidance", 
       str_detect(modtr, "globe_ge") ~ "Gender Egalitarian",
       str_detect(modtr, "globe_po") ~ "Power Distance",
@@ -1338,12 +1345,14 @@ cni.ContMod_names <- tibble(objects = str_remove(cni.contMod_object_names, "\\.R
      part2 == "cog" ~ "Cognitive",
      part2 == "pty" ~ "Personality",
      TRUE ~ part2 )) %>% 
-  mutate(title = paste0(part1, " CNI ~ ", part2)) %>% 
-  select(objects, title)
+  mutate(title = paste0(part1, " CNI ~ ", part2),
+         caption = paste0("Linear associations between ", part1, "CNI and ", part2, " traits. Bars: standardized interaction effect (CNI by trait). Errorbars: 95% CI"))%>% 
+  select(objects, title, caption) 
+
+
 ```
 
 ```{r walk-cni.ContMod-effects-table, results='asis', echo=FALSE}
-
 walk2(cni.ContMod_names$objects, cni.ContMod_names$title, function(obj, title) {
   cat("\n\n")  
   print(cni.ContMod_effects_table(get(obj), title))
@@ -1412,11 +1421,11 @@ color_mapping <- get_color_mapping(processed_data)
        # domain independent order
     theme_bw() +
     coord_flip()+
-  theme(
+  theme(text = element_text(family="serif"),
     legend.position = "bottom",
     axis.text.y = element_markdown(
       color = color_mapping[levels(processed_data$modtr)],
-      size = 8))
+      size = 6))
      
      return(final_plot)
 }
@@ -1478,10 +1487,20 @@ processed_data <- data %>%
     geom_col(position = position_dodge(width = 0.8)) +
     geom_errorbar(aes(ymin = conf.low, ymax = conf.high), position = position_dodge(width = 0.8), width = 0.25) +
     geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-    scale_fill_manual(values = setNames(processed_data$colors, processed_data$domain)) +
-    scale_alpha_manual(values = c("Individual" = 1, "Country" = 0.4)) +
-    labs(x = "Moderator", y = "Estimate", title = title, fill = "Trait", alpha = "Level")
-    
+    scale_fill_manual(
+  values = setNames(processed_data$colors, processed_data$domain),
+  guide = guide_legend(
+    position = "bottom",
+    ncol = 2,
+    direction = "vertical"))  +
+    scale_alpha_manual(
+  values = c("Individual" = 1, "Country" = 0.4),
+  guide = guide_legend(
+    position = "bottom",
+    ncol = 1,
+    direction = "vertical")) +
+    labs(x = NULL, y = "Estimate", title = title, fill = "Trait", alpha = "Level")
+  
     #add here different plot versions
     
   if(plot_type=="domain dependent"){
@@ -1498,10 +1517,8 @@ processed_data <- data %>%
     }
   ) +
   theme_bw() +
-  theme(
-    legend.position = "bottom",
-    axis.text.y = element_markdown(size = 8)  # Adjust size as needed
-  ) +
+  theme(axis.text.y = element_markdown(size = 8.8), 
+  text = element_text(family="serif")) +
   coord_flip()
   }else if(plot_type=="domain independent"){
     
@@ -1521,11 +1538,10 @@ color_mapping <- get_color_mapping(processed_data)
        # domain independent order
     theme_bw() +
     coord_flip()+
-  theme(
-    legend.position = "bottom",
+  theme(text = element_text(family="serif"),
     axis.text.y = element_markdown(
       color = color_mapping[levels(processed_data$modtr)],
-      size = 8
+      size = 8.8
     ))
   }else{
     stop("Invalid plot type. Choose either 'domain dependent' or 'domain independent'.")
@@ -1539,6 +1555,12 @@ return(final_plot)
 #| fig-height: 10
 #| fig-width: 10
 #| out-width: "100%"
+#| cap-location: bottom
+#| fig-cap: 
+#|   !expr cni.ContMod_names %>%
+#|     filter(str_detect(objects, "\\.pty_effects$")) %>%
+#|     pull(caption)
+
 cni.ContMod_names %>%
   filter(str_detect(objects, "\\.pty_effects$")) %>% 
   {walk2(.$objects, .$title, function(obj, title) {
@@ -1550,9 +1572,14 @@ cni.ContMod_names %>%
 
 ## Plots: [cognitive moderators] domain independent view
 ```{r walk-cni.cogContMod-effects-plot1, results='asis', echo=FALSE}
-#| fig-height: 15
+#| fig-height: 13
 #| fig-width: 10
 #| out-width: "100%"
+#| cap-location: bottom
+#| fig-cap: 
+#|   !expr cni.ContMod_names %>%
+#|     filter(str_detect(objects, "\\.cog_effects$")) %>%
+#|     pull(caption)
 
 #retain models that have cognitive moderators
 cni.ContMod_names %>%
@@ -1566,9 +1593,14 @@ cni.ContMod_names %>%
 
 ## Plots: [cognitive moderators] domain dependent view
 ```{r walk-cni.cogContMod-effects-plot2, results='asis', echo=FALSE}
-#| fig-height: 15
+#| fig-height: 13
 #| fig-width: 10
 #| out-width: "100%"
+#| cap-location: bottom
+#| fig-cap: 
+#|   !expr cni.ContMod_names %>%
+#|     filter(str_detect(objects, "\\.cog_effects$")) %>%
+#|     pull(caption)
 
 #retain models that have cognitive moderators
 cni.ContMod_names %>%
@@ -1585,7 +1617,7 @@ cni.ContMod_names %>%
 
 # cogCNI x Categorical moderators
 
-cogCNI being the most complex model, it required a different approach for running parallel processing. Here the models are computed first followed by assesing the contrasts between different groups. 
+cogCNI being the most complex model, it required a different approach for running parallel processing. Here the models are computed first followed by assessing the contrasts between different groups. 
 
 ```{r cogCNI.catMod-models}
 cni.CatMod_effects_models <- function(cni_profiles_data, modtr_cat) {
@@ -1717,9 +1749,9 @@ sig_groups1 <- \(df, var, cni_name, sig.only = FALSE) {
 }
 ```
 
-```{r cogCNI.catMod-trends-plots, results='asis'}
+```{r cogCNI.catMod-effects-tables1, results='asis'}
 # Moderator names
-var_names <- c("sex", "age_group", "mother_edu", "father_edu", "family_home")
+var_names <- c("age_group", "mother_edu", "father_edu", "family_home") #"sex"
 
 # Print all the tables
 walk(var_names, function(var) {
@@ -1730,10 +1762,6 @@ walk(var_names, function(var) {
 ```
 
 
-```{r}
-#| include: false
-#knitr::opts_chunk$set(eval = FALSE)
-```
 
 Here one function computes the model, assesses the model fit using the Type III sum of squares (of interest is to what extent does the moderator interaction explain variability in the model, above and beyond other main and random effects). The significant contrasts for each model are retained. 
 
@@ -1900,7 +1928,7 @@ sig_groups2 <- function(CNI.cat_effects, var, cni_name, sig.only = FALSE) {
 }
 ```
 
-```{r cni.catMod_effects_tables, results = 'asis'}
+```{r cni.catMod-effects-tables2, results = 'asis'}
 # categorical moderators
 var_names <- c("family_home", "mother_edu", "father_edu", "age_group")
 
