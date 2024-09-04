@@ -36,54 +36,9 @@ format:
       lof-title: "List of Figures"
     extra_dependencies: ["pdflscape", "booktabs", "longtable"]
 editor: source
-
 ---
 
-```{r Libraries, eval=FALSE, echo=FALSE}
-#install.packages("webshot2")
-library(tidyverse)
-library(rio)
-library(expss)
-library(scales)
-library(glue)
-library(rlang)
-library(kableExtra)
-library(tidyr)
-library(dplyr)
-library(stringr)
-library(psych)
-library(dplyr)
-library(tibble)
-library(here)
-
-#Measurement Invariance
-library(lavaan)
-library(semTools)
-
-#plots
-library(patchwork)
-library(gridExtra)
-library(ggplot2)
-library(dplyr)
-library(grid)
-library(ggtext)
-library(webshot2)
-
-#mlm
-library(lme4)
-library(lmerTest)
-library(broom.mixed)
-
-#estimating slopes
-library(emmeans)
-library(marginaleffects)
-library(modelsummary)
-options(modelsummary_get = "easystats")
-library(pbkrtest)
-#install.packages("modelsummary")
-```
-
-```{r eval=TRUE, echo=FALSE}
+```{r Libraries, eval=TRUE, echo=FALSE}
 pacman::p_load(tidyverse, dplyr, rio, expss, scales, glue,
                rlang, kableExtra, stringr, tibble, psych, here, webshot2,
               lavaan,semTools,#Measurement Invariance
@@ -97,9 +52,7 @@ pacman::p_load(tidyverse, dplyr, rio, expss, scales, glue,
 options(modelsummary_get = "easystats")
 ```
 
-
-
-## Data cleaning
+# Data set up
 
 ```{r data1}
 #Study1 = data1
@@ -362,8 +315,6 @@ data1 <- all_data1 %>%
 #Personality CNI-data [ips.Personality items + sc_swb + sc_pty.indv + sc_pty.comm]
 ```
 
-### Table 1: Descriptives
-
 @tbl-descriptive indicates that China has the largest while Chile has the smallest sample size in this data.
 
 ```{r DescriptiveTable}
@@ -377,19 +328,19 @@ data1 %>%
             N = n()) %>% 
   arrange(desc(N)) %>% 
   kable(format = "latex", 
-        col.names = c("Country", "Mean Age", "% Male", "Sample Size"), 
+        col.names = c("Country", "Mean Age", "% Male", "\\textit{n}"), 
         booktabs = TRUE)
 ```
 
-## Measurement Invariance - swb
+# Measurement Invariance - Subjective Well-being
 
-Measurement invariance was assessed for testing cross-cultural comparability of the 5-item Life Satisfaction scale measuring subjective well-being, across eight nations in Study 1. A series of increasingly constrained multi-group confirmatory factor analysis models were employed to evaluate configural, metric, scalar, and strict invariance.
+Measurement invariance was assessed (@tbl-MeasureMentInvariance) for testing cross-cultural comparability of the 5-item Life Satisfaction scale measuring subjective well-being, across eight nations in Study 1. A series of increasingly constrained multi-group confirmatory factor analysis models were employed to evaluate configural, metric, scalar, and strict invariance.
 
 The configural invariance model, which tests for similarity in factor structure (pattern of zero and non-zero loadings) across groups showed acceptable fit (CFI = 0.944, TLI = 0.889, RMSEA = 0.130 \[90% CI: 0.114, 0.146\], SRMR = 0.0413). This suggests that the basic factor structure of the subjective well-being scale is similar across the eight nations.
 
 The metric invariance model, which constrains factor loadings to be equal across groups, demonstrated a slight decrease in fit (CFI = 0.921, TLI = 0.907, RMSEA = 0.119 \[90% CI: 0.107, 0.130\], SRMR = 0.0753). The change in CFI (ΔCFI = 0.023) exceeds the recommended threshold of 0.01, indicating potential issues with metric invariance. The scalar invariance model, which additionally constrains item intercepts to be equal across groups, showed a substantial decrease in fit (CFI = 0.781, TLI = 0.817, RMSEA = 0.166 \[90% CI: 0.156, 0.176\], SRMR = 0.130). The large drop in CFI (ΔCFI = 0.140) suggests that scalar invariance is not supported. Finally, the strict invariance model, which also constrains residual variances to be equal across groups, exhibited a further decline in fit (CFI = 0.544, TLI = 0.722, RMSEA = 0.205 \[90% CI: 0.197, 0.214\], SRMR = 0.164), indicating that strict invariance is not tenable. In summary, while the subjective well-being scale demonstrates configural invariance across the eight nations, there is evidence of non-invariance at the metric, scalar, and strict levels. These results suggest that while the basic structure of the scale is similar across cultures, there may be differences in the strength of item-factor relationships, item intercepts, and item residuals across nations. Caution should be exercised when making direct comparisons of subjective well-being scores across these diverse cultural contexts, and further investigation into the sources of non-invariance is warranted..
 
-```{r MeasurementInvariance}
+```{r MeasurementInvariance-processing}
 swb_MI.data <- data1 %>% 
   #swb items have been rescaled to a range of 1 to 5
   dplyr::select(starts_with("swb"), country)
@@ -397,7 +348,6 @@ swb_MI.data <- data1 %>%
 swbModel = '
 f1 =~ swb1 + swb2 + swb3 + swb4 + swb5
 '
-
 #-----Configural invariance-----#
 swbModel.config <- measEq.syntax(
   configural.model = swbModel, 
@@ -461,7 +411,7 @@ fit_stats <- c("chisq", "pvalue", "df",  "rmsea",  "rmsea.ci.lower", "rmsea.ci.u
 get_all_fits <- \(summary, stat){
  fit_index <- summary$fit %>% 
    pluck(stat)
- formatted_index <- format(round(fit_index, 3), nsmall = 3)
+ formatted_index <- format(round(fit_index, 2), nsmall = 2)
     return(as.numeric(formatted_index))
 }
 
@@ -508,20 +458,21 @@ MI_table <- map_df(list(summary_config, summary_metric, summary_scalar, summary_
 
 ```
 
-### Table 2: Measurement Invariance
-
 ```{r MeasurementInvariance_Table}
 #| label: tbl-MeasureMentInvariance
 #| tbl-cap: "Measurement Invariance metrics for Subjective Well-being"
 
-MI_table %>% 
-kable(format = "latex", 
-      booktabs = TRUE, 
-      col.names = c("Invariance type", "Chi square", colnames(MI_table)[3:6], "$\\Delta$CFI", "$\\Delta$RMSEA", "$\\Delta$SRMR"))%>%
+options(knitr.kable.NA = '')
+
+ MI_table %>% 
+  kable(format = "html", 
+        booktabs = TRUE, 
+        escape = FALSE, 
+        col.names = c("Invariance type", "Chi square", colnames(MI_table)[3:6], "\u394 CFI", " \u394 RMSEA", "\u394 SRMR")) %>%
   kable_styling(latex_options = c("hold_position"))
 ```
 
-## RQ1: Computing CNI
+# RQ1: Computing CNI
 
 CNI is estimated using a random slope multilevel model (fixed intercepts; as the self and country responses have been ipsatized or standardized, the mean or the b0 will be zero) wherein the items nested within person. The ipsatization allows for the estimated slopes to be interpreted as correlation coefficients estimates.
 
@@ -674,7 +625,7 @@ save(cogCNI_mod, pty6CNI_mod,pty7CNI_mod,
 load(here("objects/Study1/all_CNI.mods_study1.Rdata"))
 ```
 
-## RQ: Measuring Model Complexity
+## Measuring Model Complexity
 
 Model complexity is assessed for each Cultural Normativity Index (CNI) measure by including all items used to construct the CNI. Two metrics are used to evaluate complexity:
 
@@ -683,7 +634,7 @@ Model complexity is assessed for each Cultural Normativity Index (CNI) measure b
 
 These metrics provide quantitative measures of the underlying dimensionality and structure of each CNI.
 
-```{r fun.-heterogeneity}
+```{r fun.-heterogeneity, message=FALSE, warning=FALSE}
 # Function to calculate heterogeneity
 compute_heterogeneity <- function(data) {
   # Compute correlation matrix once - memory efficient
@@ -736,25 +687,24 @@ heterogeneity_stats <- map_dfr(
 ),
  compute_heterogeneity, .id = "cni_type"
 )
-
-
 ```
 
-```{r tbl-heterogeneity}
+```{r tbl-heterogeneity, results='asis'}
+#| tbl-cap: "Model complexity"
 heterogeneity_stats %>% 
   kable(booktabs = T, 
         escape = F,
         format = "latex",
-        col.names = c("CNI type", "No. items", "Parallel analysis", "PCA"),
-        caption = "Model complexity") %>% 
+        col.names = c("CNI type", "No. items", "Parallel analysis", "PCA")) %>% 
   kable_styling() %>% 
      group_rows("Cognitive", 1, 4) %>%
-     group_rows("Personality", 5, 6) 
+     group_rows("Personality", 5, 6) %>% 
+   add_footnote("Note: Personality6 = Big 6 items; Personality7 = Big 6 items + Disintegration.", notation = "none")
 ```
 
-```{r plot-heterogeneity}
-#|fig-cap: "Model Complexity Measures Across CNI"
-#|ffig-cap-location: "bottom"
+```{r plot-heterogeneity, results='asis'}
+#| fig-cap-location: bottom
+#| fig-cap: "Model Complexity Measures Across CNI"
 
 heterogeneity_stats %>%
   pivot_longer(cols = c(pa, pca_50), names_to = "metric", values_to = "value") %>%
@@ -766,19 +716,13 @@ ggplot(., aes(x = x_label, y = value, color = metric, group = metric)) +
   scale_color_manual(values = c("pa" = "#e78f8e", "pca_50" = "#93bfa6"),
                      labels = c("pa" = "Parallel Analysis", "pca_50" = "PCA 50%"),
                      name = "Metric") +
-  labs(title = "Model Complexity Measures Across CNI Types",
-       x = "CNI Type",
-       y = "Number of Factors") +
+  labs(x = "CNI Type",
+       y = "No. of Components") +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
         legend.position = "bottom",
         text = element_text(family="serif"))
 ```
-
-### Figure: distribution of CNI's
-
-
-
 
 ```{r fun.-plot_CNI}
 #Functions
@@ -850,8 +794,8 @@ save(cogCNI_plot, ismCNI_plot, globeCNI_plot, fantcCNI_plot, pty6CNI_plot, pty7C
 load(here("objects/Study1/all_CNImods_plots.Rdata"))
 ```
 
-```{r fun.-patch_CNIplots}
-patch_CNIplots <- \(plot_list, title){
+```{r fun.-patch_CNIplots, echo = FALSE}
+patch_CNIplots <- \(plot_list){
   
   p1 <- plot_list$coefficient_plot & 
   theme(plot.title = element_blank())
@@ -859,30 +803,20 @@ patch_CNIplots <- \(plot_list, title){
   p2 <- plot_list$hist_plot & 
   theme(plot.title = element_blank())
   
-  combined_plot <- p1 + p2 +
-    plot_annotation(
-      title = title,
-      theme = theme(
-        plot.title = element_text(hjust = 0.5),
-        text = element_text(family = "serif")))
+  combined_plot <- p1 + p2
   
   return(combined_plot)
 }
-```
 
-
-
-```{r}
-
+# info for walk
 cni_plot_details <- tibble(
   cni_type = c("cog", "ism", "globe", "fantc", "pty6", "pty7"), 
 caption = c("Cognitive CNI", "Isms-Cognitive CNI", "Globe-Cognitive CNI","Fanaticism-Cognitive CNI", "Personality6 CNI", "Personality7 CNI")) %>% 
-  mutate(cni_mod = paste0(cni_type, "CNI_plot"),
-         title = paste0(cni_type, "CNI"))
+  mutate(cni_mod = paste0(cni_type, "CNI_plot"))
 ```
 
-```{r}
-#| fig-height: 6.5
+```{r echo = FALSE}
+#| fig-height: 4
 #| fig-width: 10
 #| out-width: "100%"
 #| cap-location: bottom
@@ -892,23 +826,21 @@ caption = c("Cognitive CNI", "Isms-Cognitive CNI", "Globe-Cognitive CNI","Fanati
 
 #retain models that have cognitive moderators
 cni_plot_details %>%
-  pwalk(function(cni_mod, title, ...) {
+  pwalk(function(cni_mod,  ...) { 
     cat("\n\n")
-    print(patch_CNIplots(get(cni_mod), title))
+    print(patch_CNIplots(get(cni_mod))) 
     cat("\n\n")
   })
 ```
 
-
-
 ```{r DONT-RUN-create-tbl-cni-mods, echo = T, eval = F}
 CNImods_table1 <- modelsummary(
-  list("Cognitive CNI" = cogCNI_mod,
-       "Ism-Coginitive CNI" = ismCNI_mod,
-       "Globe-Coginitive CNI" = globeCNI_mod,
-       "Fanaticism-Coginitive CNI" = fantcCNI_mod,
-       "Personality6 CNI" = pty6CNI_mod,
-       "Personality7 CNI" = pty7CNI_mod), 
+  list("Mindset" = mindsetCNI_mod,
+       "Ism" = ismCNI_mod,
+       "Globe" = globeCNI_mod,
+       "Fanaticism" = fantcCNI_mod,
+       "Pty6" = pty6CNI_mod,
+       "Pty7" = pty7CNI_mod), 
              estimate = "{estimate}{stars}",
              statistic = "[{conf.low}, {conf.high}]",
             # group = group + term ~ model, 
@@ -921,8 +853,16 @@ CNImods_table1 <- modelsummary(
                "SD (Observations)" = ""),
              gof_map = c("nobs"), 
              fmt = "%.2f",
-             title = "Cultural Normativity Index",
-             output = "kableExtra")
+             output = "kableExtra") %>% 
+ # latex_options = "HOLD_position") %>% 
+  kable(format = "latex") %>% 
+  add_header_above(c(" ", "Mindset" = 4, "Personality" = 2)) %>% 
+   add_footnote(
+    c("Pty6 = Big 6 personality items; Pty7 = Big 6 personality items + Disintegration"),
+    notation = "none"
+  ) %>%
+  column_spec(6, extra_css = "position: relative;") %>%
+  column_spec(7, extra_css = "position: relative;") 
 ```
 
 ```{r save-CNItable, echo = F, eval = F}
@@ -934,21 +874,9 @@ save(CNImods_table1,
 load(here("objects/Study1/CNImods_table1.Rdata"))
 ```
 
-```{r}
-#CHANGES: the titles have too many Cognitive and Personality terms, simplify that
-CNImods_table1 %>% 
-  add_header_above(c(" ", "Cognitive" = 4, "Personality" = 2))
-```
-
-```{r checkLATER-emtrends, eval=F, echo=F}
-library(parallel)
-options(emmeans.cores = parallel::detectCores() - 1)
-emm_options(lmerTest.limit = 65350)
-memory.limit(size=10000)  
- pty6CNI_mod1_ctry.trends <- emtrends(pty6CNI_mod1, 
-                      ~country, 
-                      pbkrtest.limit = 65350,
-                      var = "z_ctry_response")
+```{r tbl-cni-mods, results='asis', echo=F, eval=T}
+#| tbl-cap: "Cognitive and Perosnality Cultural Normativity Index (CNI) Models"
+CNImods_table1 
 ```
 
 ```{r DONT-RUN-cni.ctry-trends, eval=F, echo=T}
@@ -956,11 +884,9 @@ memory.limit(size=10000)
 #cogCNI_mod_ctry.slopes <- slopes(cogCNI_mod , variables = "z_ctry_response", by = "country")
 
 all_mods_ctry.trends <- map_dfr(lst(
-  cogCNI_mod, ismCNI_mod, globeCNI_mod,fantcCNI_mod,
+  mindsetCNI_mod, ismCNI_mod, globeCNI_mod,fantcCNI_mod,
   pty6CNI_mod, pty7CNI_mod), 
                  ~slopes(., variables = "z_ctry_response", by = "country"), .id = "model") 
-
-#all_mods_ctry.trends %>% View()
 ```
 
 ```{r fun.-oneCoef-plot, echo = F, eval = F}
@@ -1000,8 +926,14 @@ load(here("objects/Study1/CNI-ctry-trends1.Rdata"))
 ```
 
 ```{r ctry-trends-3models-plot}
+#| fig-height: 8
+#| fig-width: 10
+#| out-width: "100%"
+#| fig-cap: "CNI estimates across countries: Three CNIs"
+#| fig-cap-location: bottom
+
 all_mods_ctry.trends %>% 
-  as_tibble() %>% 
+  as_tibble() 
   mutate(model = str_extract(model, "^[^_]+")) %>% 
   filter(model %in% c("cogCNI", "pty6CNI", "pty7CNI")) %>% 
   select(model, country, estimate, conf.low, conf.high) %>% 
@@ -1017,18 +949,20 @@ all_mods_ctry.trends %>%
      "pty6CNI" = "#ff7477", "pty7CNI" = "#ff70a6")) + 
   labs(x = NULL, 
        y = "CNI",
-       title = "CNI estimates across countries",
        color = "Model") +
   coord_flip() +
   theme_bw() +
   theme(plot.title.position = "plot",
-        legend.position = "bottom")
+        legend.position = "bottom",
+        text = element_text(family = "serif", size = 13.7))
 ```
 
 ```{r ctry-trends-6models-plot}
 #| fig-height: 8
 #| fig-width: 10
 #| out-width: "100%"
+#| fig-cap: "CNI estimates across countries: Six CNIs"
+#| fig-cap-location: bottom
 
 all_mods_ctry.trends %>% 
   as_tibble() %>% 
@@ -1041,16 +975,19 @@ all_mods_ctry.trends %>%
   scale_y_continuous(limits = c(0, 1)) +
   scale_color_manual(values = c("cogCNI" = "#1e81b0", "ismCNI"  = "#70d6ff", "globeCNI"  = "#a7bed3", "fantcCNI"  = "#a0c4ff", "pty6CNI" = "#ff7477", "pty7CNI" = "#ff70a6")) +
    scale_linetype_manual(values = c("globeCNI"  ="dashed", "ismCNI"  ="dashed", "fantcCNI"  ="dashed", "cogCNI" = "solid", "pty7CNI" = "solid","pty6CNI" = "solid")) +
-  labs(x = NULL, y = "CNI", title = "CNI estimates across countries",
+  labs(x = NULL, y = "CNI", 
        color = "Model") +
   coord_flip() +
   theme_bw() +
   theme(plot.title.position = "plot",
-        legend.position = "bottom")+
+        legend.position = "bottom",
+        text = element_text(family = "serif", size = 13.7))+
   guides(linetype = "none")
 ```
 
-## RQ 2: CNI ~ Continuous moderators
+# RQ 2: Associations between CNI and personality and cognitive variables
+
+CNI \~ Continuous moderators
 
 ```{r fun.-cni-mod-effects}
 # Moderators here have to continuous, this won't work for categorical moderators
@@ -1198,7 +1135,6 @@ specify_var_names <- \(data){
 }
 ```
 
-
 ```{r cni.ContMod_tblNames}
 #generate inputs for cni.ContMod_effects_tblData
 #ismCNI.cog <- cni.ContMod_effects_tblData(ismCNI_profiles, "cognitive")
@@ -1252,8 +1188,6 @@ load(here("objects/Study1/cni.ContMod_tables1.Rdata"))
 # [~33mins to load] 4:26pm start - end 4:58pm end
 ```
 
-Tables
-
 ```{r}
 cni.ContMod_effects_table <- \(data, title){
 
@@ -1284,44 +1218,40 @@ df1 %>%
   kable(booktabs = T, 
         escape = F,
         format = "latex",
-        col.names = c(" ", "Est", "95\\% CI", "p", "Est", "95\\% CI", "p"),
+        col.names = c(" ", "Est", "95\\% CI", "$\\textit{p}$", "Est", "95\\% CI", "$\\textit{p}$"),
         caption = title) %>% 
   kable_styling() %>% 
-  add_header_above(c(" ", "Linear" = 3, "Quadratic" = 3)) %>% 
+  add_header_above(c(" ", "Linear (b)" = 3, "Quadratic (b^2)" = 3)) %>% 
      group_rows("Individual level", 1, no.modtrs) %>% 
   group_rows("Country level", no.modtrs+1, no.modtrs*2) 
  
 }
 ```
 
-
 ```{r cni.ContMod_tbl_details}
 cni.ContMod_tbl_details <-  cni.ContMod_tblNames %>% 
   mutate(caption_part = rep(pull(cni_plot_details, caption), each = 2),
-         caption = paste0("Linear association between ",caption_part, " and ", variable_type, "traits"),
+         caption = paste0("Association between ",caption_part, " and ", variable_type, " traits"),
          title = str_replace_all(table_name , "\\.", "~")) %>% 
-  select(table_name, title, caption)
+  select(table_name, title, caption, variable_type)
 ```
-#---------------
 
 ```{r cni.ContMod-tbls, echo = F, eval=T, results='asis'}
 #retain models that have cognitive moderators
 cni.ContMod_tbl_details %>%
-  pwalk(function(table_name, title, ...) {
+  pwalk(function(table_name, caption, ...) {
     cat("\n\n")
     print(
       pluck(cni.ContMod_tables, table_name) %>% 
-        cni.ContMod_effects_table(., title)
+        cni.ContMod_effects_table(., caption)
     )
     cat("\n\n")
   })
 ```
 
-
-Plots
-
 ```{r fun.-plot-cni.ContMod}
-cni.pty_effects_plot <-\(data, title){
+#"Moderating effects on CNI: Individual vs Community"
+cni.pty_effects_plot <-\(data){
 
 data %>% 
   #only linear effects
@@ -1361,15 +1291,16 @@ data %>%
  )) +
   scale_alpha_manual(values = c("Individual" = 1, "Community" = 0.4)) +
   labs(x = "Moderator", y = "Estimate",
-       title = title,
+      # title = title,
        fill = "Trait", alpha = "Level") +
   theme_bw() +
-  theme(legend.position = "bottom") +
+  theme(legend.position = "bottom", 
+        text = element_text(family = "serif", size = 14)) +
   coord_flip() +
   guides(fill = "none")  
-}
+} #, title
 
-cni.cog_effects_plot <- \(data, title){
+cni.cog_effects_plot <- \(data){
 
 data %>% 
 #only linear effects
@@ -1418,114 +1349,61 @@ scale_fill_manual(values = c(
 )) +
   scale_alpha_manual(values = c("Individual" = 1, "Community" = 0.4)) +
   labs(x = "Moderator", y = "Estimate",
-       title = title,
+    #   title = title,
        fill = "Trait", alpha = "Level") +
   theme_bw() +
-  theme(legend.position = "bottom") +
+  theme(legend.position = "bottom",
+        text = element_text(family = "serif", size = 13.7)) +
   coord_flip()
 
-}
+} #, title
+```
 
-#"Moderating effects on CNI: Individual vs Community"
+```{r}
+#| fig-height: 7
+#| fig-width: 10
+#| out-width: "100%"
+#| fig-cap-location: bottom
+#| fig-cap: 
+#|   !expr cni.ContMod_tbl_details %>%
+#|   filter(variable_type == "personality") %>% 
+#|     pull(caption)
+
+cni.ContMod_tbl_details %>%
+  filter(variable_type == "personality") %>% 
+  pull(table_name) %>%
+  walk(\(table_name) {
+    cat("\n\n")
+    print(
+      pluck(cni.ContMod_tables, table_name) %>% 
+        cni.pty_effects_plot())
+    cat("\n\n")
+  })
 ```
 
 ```{r echo = F, eval=T}
-#| fig-height: 5
+#| fig-height: 12
 #| fig-width: 10
 #| out-width: "100%"
-cni.ContMod_tables$cogCNI.pty7 %>% 
-  cni.pty_effects_plot(., "cognitive CNI ~ personality")
+#| fig-cap-location: bottom
+#| fig-cap: 
+#|   !expr cni.ContMod_tbl_details %>%
+#|   filter(variable_type == "cognitive") %>% 
+#|     pull(caption)
+
+cni.ContMod_tbl_details %>%
+  filter(variable_type == "cognitive") %>% 
+  pull(table_name) %>%
+  walk(\(table_name) {
+    cat("\n\n")
+    print(
+      pluck(cni.ContMod_tables, table_name) %>% 
+        cni.cog_effects_plot())
+    cat("\n\n")
+  })
 ```
 
-```{r echo = F, eval=T}
-#| fig-height: 11
-#| fig-width: 10
-#| out-width: "100%"
-cni.ContMod_tables$cogCNI.cog %>% 
-  cni.cog_effects_plot(., "cognitive CNI ~ cognitive")
-```
-
-```{r echo = F, eval=T}
-#| fig-height: 5
-#| fig-width: 10
-#| out-width: "100%"
-cni.ContMod_tables$ismCNI.pty7 %>% 
-  cni.pty_effects_plot(., "isms CNI ~ personality")
-```
-
-```{r echo = F, eval=T}
-#| fig-height: 11
-#| fig-width: 10
-#| out-width: "100%"
-cni.ContMod_tables$ismCNI.cog %>% 
-  cni.cog_effects_plot(., "isms CNI ~ cognitive")
-```
-
-```{r echo = F, eval=T}
-#| fig-height: 5
-#| fig-width: 10
-#| out-width: "100%"
-cni.ContMod_tables$globeCNI.pty7 %>% 
-  cni.pty_effects_plot(., "globe CNI ~ personality")
-```
-
-```{r echo = F, eval=T}
-#| fig-height: 11
-#| fig-width: 10
-#| out-width: "100%"
-cni.ContMod_tables$globeCNI.cog %>% 
-  cni.cog_effects_plot(., "globe CNI ~ cognitive")
-```
-
-```{r echo = F, eval=T}
-#| fig-height: 5
-#| fig-width: 10
-#| out-width: "100%"
-cni.ContMod_tables$fantcCNI.pty7 %>% 
-  cni.pty_effects_plot(., "fanaticism CNI ~ personality")
-```
-
-```{r echo = F, eval=T}
-#| fig-height: 11
-#| fig-width: 10
-#| out-width: "100%"
-cni.ContMod_tables$fantcCNI.cog %>% 
-  cni.cog_effects_plot(., "fanaticism CNI ~ cognitive")
-```
-
-```{r echo = F, eval=T}
-#| fig-height: 5
-#| fig-width: 10
-#| out-width: "100%"
-cni.ContMod_tables$pty6CNI.pty7 %>% 
-  cni.pty_effects_plot(., "personality6 CNI ~ personality")
-```
-
-```{r echo = F, eval=T}
-#| fig-height: 11
-#| fig-width: 10
-#| out-width: "100%"
-cni.ContMod_tables$pty6CNI.cog %>% 
-  cni.cog_effects_plot(., "personality6 CNI ~ cognitive")
-```
-
-```{r echo = F, eval=T}
-#| fig-height: 5
-#| fig-width: 10
-#| out-width: "100%"
-cni.ContMod_tables$pty7CNI.pty7 %>% 
-  cni.pty_effects_plot(., "personality7 CNI ~ personality")
-```
-
-```{r echo = F, eval=T}
-#| fig-height: 11
-#| fig-width: 10
-#| out-width: "100%"
-cni.ContMod_tables$pty7CNI.cog %>% 
-  cni.cog_effects_plot(., "personality7 CNI ~ cognitive") 
-```
-
-## RQ2.1: CNI\~well-being
+# RQ3.1: CNI\~well-being
 
 ```{r DONT-RUN-swb-effects, echo = T, eval = F}
 cni.swbMod_tblNames <- tibble(table_name = c("cogCNI.swb", "ismCNI.swb", "globeCNI.swb", "fantcCNI.swb", "pty6CNI.swb", "pty7CNI.swb")) %>%
@@ -1533,7 +1411,6 @@ cni.swbMod_tblNames <- tibble(table_name = c("cogCNI.swb", "ismCNI.swb", "globeC
     cni_type = paste0(str_extract(table_name, "^[^.]+"), "_profiles"),
     variable_type =  str_extract(table_name, "[^.]+$")
     )
-
 
 cni.swbMod_tables <- map2(
   .x = cni.swbMod_tblNames$cni_type,
@@ -1570,7 +1447,7 @@ cni.swbMod_tables %>%
     p.value = map_chr(p.value, papaja::printp),
     across(where(is.numeric), ~ round(., 3)),
   ci = paste0("[", conf.low, ", ", conf.high,"]"),
-         term = ifelse(str_detect(term, "2"), "Quadratic", "Linear"),
+         term = ifelse(str_detect(term, "2"), "Quadratic", "Linear "),
     estimate = as.character(estimate) ) %>% 
   select(level, cni_type, modtr, term, estimate, ci, p.value) %>% 
   pivot_longer(cols = c(estimate, ci, p.value), names_to = "stat", values_to = "stat_value") %>% 
@@ -1580,10 +1457,10 @@ cni.swbMod_tables %>%
     kable(booktabs = T, 
         escape = F,
         format = "latex",
-        col.names = c(" ", "Est", "95\\% CI", "p", "Est", "95\\% CI", "p"),
-        caption = "CNI ~ Subjective well-being") %>% 
+        col.names = c(" ", "Est", "95\\% CI", "$\\textit{p}$", "Est", "95\\% CI", "$\\textit{p}$"),
+        caption = "Association between CNI and Subjective well-being") %>% 
   kable_styling() %>% 
-  add_header_above(c(" ", "Linear" = 3, "Quadratic" = 3)) %>% 
+  add_header_above(c(" ", "Linear (b)" = 3, "Quadratic (b^2)" = 3)) %>% 
      group_rows("Individual level", 1, 6) %>%
      group_rows("Country level", 7, 12) 
 ```
@@ -1629,7 +1506,8 @@ scale_fill_manual(values = c(
        fill = "CNI type", alpha = "Level") +
   theme_bw() +
   theme(legend.position = "bottom",
-        axis.title.x = element_blank()) +
+        axis.title.x = element_blank(), 
+        text = element_text(family = "serif", size = 11)) +
   coord_flip()
 
 }
@@ -1643,17 +1521,17 @@ cni.swbMod_tables %>%
   imap(~mutate(.x, cni_type = .y, .before = level)) %>%
   list_rbind() %>% 
   arrange(desc(level)) %>% 
-  mutate(cni_type = str_remove(cni_type, "\\..*$"), .before = level) %>% #distinct(term)
+  mutate(cni_type = str_remove(cni_type, "\\..*$"), .before = level) %>% 
   cni.swb_effects_plot(., "CNI ~ swb")+
   guides(fill = "none")
 ```
 
-## RQ2.2: Well-being \~ CNI
+# RQ3.2: Well-being \~ CNI
+
+To what extent can CNI predict well-being
 
 ```{r swb.cni-lmer, eval=TRUE}
-#cni_mod=ismCNI_mod
 compute_swb.cni_mods_lmer <- \(cni_mod){
- 
   data <- coef(cni_mod)$pID %>%
   as.data.frame() %>%
   mutate(pID = rownames(.)) %>%
@@ -1680,7 +1558,6 @@ all_swb.cni_mods <- map(
   pty6CNI_mod, pty7CNI_mod), 
   compute_swb.cni_mods_lmer) 
 ```
-
 
 ```{r DONT-RUN-swb.cni_mods_heterosk, echo = T, eval = F}
  library(whitestrap)
@@ -1742,23 +1619,20 @@ swb.cni_heterosk_tbl <- map_dfr(convert_to_char(cogCNI_mod, ismCNI_mod, globeCNI
 
 ```{r}
 swb.cni_heterosk_tbl %>% 
-  mutate(model=str_extract(model, "^[^_]+")) %>% 
+  mutate(model=str_extract(model, "^[^CNI]+")) %>% 
   kable(booktabs = T,
         escape = F,
         format = "latex",
-        col.names = c("Model", "W", "$\\textit{p}$", "W", "$\\textit{p}$")) %>%
+        col.names = c("Model", "W", "p", "W", "p")) %>%
   kable_styling() %>%
-  add_header_above(c("", "Linear" = 2, "Quadratic" = 2)) %>% 
+  add_header_above(c(" ", "Linear (b)" = 2, "Quadratic (b^2)" = 2)) %>% 
    footnote(general = paste0(
-    "Linear model: $\\text{sc_swb.indv} \\sim \\text{CNI}$; ",
-    "Quadratic model: $\\text{sc_swb.indv} \\sim \\text{CNI} + \\text{CNI}^2$"
-  ), general_title = "Note:",
-           footnote_as_chunk = TRUE,
+    "Linear model: sc_swb.indv CNI; ",
+    "Quadratic model: sc_swb.indv CNI + CNI^2"), general_title = "Note:", title_format = "italic", 
+    fixed_small_size = TRUE,
+           footnote_as_chunk = FALSE,
            threeparttable = TRUE)
-
 ```
-
-Plot swb ~ CNI
 
 ```{r}
 plot_swb.cni <- \(model) {
@@ -1791,24 +1665,24 @@ all_swb.cni_plots <- map_depth(
   .depth = 2,
   .f = plot_swb.cni)
 
-
   
 plot_swb.cni_patch <- \(model){
   plots <- all_swb.cni_plots%>% 
   pluck(model) %>% 
   set_names(c("li", "lc", "qi", "qc"))
   
-   title <- str_extract(model, "^[^_]+")
+  # title <- str_extract(model, "^[^_]+")
   
   plots$li + 
   plots$qi + 
-  plot_layout(axis_titles = "collect")+
+ # plot_layout(axis_titles = "collect")+
   plot_annotation(
-    title = title ,
+  #  title = title ,
       tag_levels = list(c("Linear", "Quadratic"))) &  
   theme(
     plot.tag.position = c("top"),
-    plot.caption = element_markdown(size = 12)
+    plot.caption = element_markdown(size = 12), 
+    text = element_text("serif")
   )
 }
 ```
@@ -1816,11 +1690,11 @@ plot_swb.cni_patch <- \(model){
 ```{r}
 cni_mod_obj.names <- tibble(cni_type = c("cog", "ism", "globe", "fantc", "pty6", "pty7")) %>% 
   mutate(cni_mod = paste0(cni_type, "CNI_mod"),
-         caption = paste0("Quadratic association between", cni_type, " CNI and Subjective Well-being" ))
+         caption = paste0("Association between ", cni_type, " CNI and Subjective Well-being" ))
 ```
 
 ```{r}
-#| fig-height: 6.5
+#| fig-height: 4
 #| fig-width: 10
 #| out-width: "100%"
 #| cap-location: bottom
@@ -1837,4 +1711,3 @@ cni_mod_obj.names %>%
     cat("\n\n") 
   })
 ```
-
