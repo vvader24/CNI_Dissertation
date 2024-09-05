@@ -37,6 +37,12 @@ format:
 editor: source
 ---
 
+```{r eval=FALSE, echo=FALSE}
+#Notes: For code chunks that have `DONT-RUN` in their labels involve computations that take longer or require parallel processing. These will be typically followed by code for loading objects that have been saved after running these chunks. 
+```
+
+
+
 # Data set up
 
 ```{r Libraries}
@@ -196,7 +202,7 @@ scP_Consc.indv = compute_trait_score(.,
             paste0("P", c(1,13,25)), 
             paste0("P", c(7,19,31))),
 scP_Hon.indv = compute_trait_score(.,
-            paste0("P", c(11,17,29)), #, 38
+            paste0("P", c(11,17,29)), 
             paste0("P", c(5,23,35))),
 scP_Agree.indv = compute_trait_score(.,
             paste0("P", c(8,32)), 
@@ -205,10 +211,10 @@ scP_Res.indv = compute_trait_score(.,
             paste0("P", c(12,36)), 
             paste0("P", c(6,18,24,30))),
 scP_Extra.indv = compute_trait_score(.,
-            paste0("P", c(3,15,27)), #,37
-            paste0("P", c(9,21,33))), #,40
+            paste0("P", c(3,15,27)), 
+            paste0("P", c(9,21,33))), 
 scP_Vir.indv = compute_trait_score(.,
-            paste0("P", c(10,16,22,34)), #,39
+            paste0("P", c(10,16,22,34)),
             paste0("P", c(4,28))),
 
    #Personality: pty2
@@ -440,11 +446,20 @@ group_rows("Father's Education", 24, 33) %>%
 group_rows("Language of Administration", 34, 51) 
 ```
 
-## CNI models - all types
+# CNI Models
+For study 2, eight CNI models are computed:
+
+1. Mindset CNI: consisting of all mindset items 
+2. Isms CNI
+3. Globe CNI: Original Globe items by House et al.
+4. GlobeEx CNI: House et al. + extra items
+5. Moral Foundations CNI
+6. Fanaticism CNI
+7. Social Axioms CNI
+8. Personality 6 CNI: consisting of Big 6 items
 
 ```{r funs.-model_CNI}
-#FUNCTIONS for computing CNIs
- #Note: 1 here inidcates study 1
+# functions for computing CNIs
 
 #item names for CNI type
 get_item_names <- \(CNI_type, data) {
@@ -526,9 +541,15 @@ overallM_profiles <- self.ctry_profiles %>%
 return(lst(self.ctry_profiles, overallM_profiles)) #set_names() to the input object names
 
 } 
+
+#computing CNI
+add_CNIformula <- \(data){
+  lmer(z_response ~ z_ctry_response + overall.M + (-1 + z_ctry_response|country/pID), data = data)
+  }
+
 ```
 
-```{r profiles}
+```{r CNI-profiles}
 #get all item names for CNI types
 mindsetCNI_items <- get_item_names("Mindset", all_vars_d)
 pty6CNI_items <- get_item_names("pty6", all_vars_d)
@@ -552,10 +573,6 @@ socAxCNI_profiles <- compute_profiles(socAxCNI_items)
 
 ```{r DONT-RUN-fit-all-cni-mods, eval=FALSE, echo=TRUE}
 
-#computing CNI
-add_CNIformula <- \(data){
-  lmer(z_response ~ z_ctry_response + overall.M + (-1 + z_ctry_response|country/pID), data = data)
-  }
 
 mindsetCNI_mod <- mindsetCNI_profiles$self.ctry_profiles %>% 
   full_join(cogCNI_profiles$overallM_profiles, by = "item") %>% add_CNIformula(.)
@@ -590,6 +607,7 @@ save(mindsetCNI_mod, pty6CNI_mod, ismCNI_mod, fantcCNI_mod, globeCNI_mod, globeE
 ```{r load-CNImods, echo = F}
 load(here("objects/Study2/all_CNI.mods_study2.Rdata"))
 ```
+
 
 
 ## CNI - heterogeneity
@@ -666,7 +684,7 @@ save(heterogeneity_stats,
 load(here("objects/Study2/heterogeneity_stats_study2.Rdata"))
 ```
 
-```{r tbl-heterogeneity}
+```{r tbl-heterogeneity, results='asis'}
 heterogeneity_stats %>% 
    mutate(cni_type = str_replace_all(cni_type, "_", " ")) %>% 
   kable(booktabs = T, 
@@ -680,12 +698,12 @@ heterogeneity_stats %>%
 ```
 
 ```{r plot-heterogeneity}
-#| fig-height: 4
+#| fig-height: 6
 #| fig-width: 10
 #| out-width: "100%"
 #| cap-location: bottom
 #| fig-cap: "Model Complexity Measures Across CNI Types"
-#| 
+
 heterogeneity_stats %>%
   pivot_longer(cols = c(pa, pca_50), names_to = "metric", values_to = "value") %>%
   mutate(x_label = paste0(cni_type, "\n(", n_items, " items)"),
@@ -702,13 +720,13 @@ ggplot(., aes(x = x_label, y = value, color = metric, group = metric)) +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
         legend.position = "bottom",
-        text = element_text(family = "serif", size = 12))
+        text = element_text(family = "serif", size = 14))
 
 ```
 
 ## CNI plots
 
-```{r fun.-plot_CNI}
+```{r fun.-plot_CNI, echo=FALSE}
 #Functions
 #model1_est = tidy(model1, conf.int = T)
 
@@ -797,6 +815,7 @@ patch_CNIplots <- \(plot_list){
 }
 ```
 
+
 ```{r print-patch_CNIplots-details}
 # Create a list of plot objects and their corresponding titles
 CNIplot_data <- lst(
@@ -823,8 +842,9 @@ CNIplot_data_details <- tibble(
 )
 ```
 
+
 ```{r print-patch_CNIplots}
-#| fig-height: 7
+#| fig-height: 5
 #| fig-width: 10
 #| out-width: "100%"
 #| fig-cap-location: bottom
@@ -936,12 +956,12 @@ plotCNI_ctry_trends <- \(slope_data){
 #plotCNI_ctry_trends(mindsetCNI_mod_ctry.slopes)
 ```
 
-```{r ctry-trends-2models-plot}
+```{r ctry-trends-2models-plot, echo=F, eval=T}
 #| fig-height: 12
 #| fig-width: 10
 #| out-width: "100%"
 #| fig-cap-location: bottom
-#| fig-cap: "CNI estimates across countries: Three CNIs"
+#| fig-cap: "CNI estimates across countries: Two CNIs"
 
 all_mods_ctry.trends %>% 
   as_tibble() %>% 
@@ -965,10 +985,10 @@ all_mods_ctry.trends %>%
   theme_bw() +
   theme(plot.title.position = "plot",
         legend.position = "bottom", 
-        text = element_text(family = "serif", size = 12))
+        text = element_text(family = "serif", size = 11))
 ```
 
-```{r ctry-trends-8models-plot}
+```{r ctry-trends-8models-plot, echo=F, eval=T}
 #| fig-height: 12
 #| fig-width: 10
 #| out-width: "100%"
@@ -1000,7 +1020,7 @@ all_mods_ctry.trends %>%
   theme_bw() +
   theme(plot.title.position = "plot",
         legend.position = "bottom", 
-        text = element_text(family = "serif", size = 12)) +
+        text = element_text(family = "serif", size = 11)) +
   guides(linetype = "none", alpha = "none", size = "none")
 ```
 
@@ -1084,42 +1104,27 @@ cni.ContMod_effects <- function(cni_profiles_data, modtr_pattern) {
 
 
 
-```{r table_contMods, echo=FALSE}
+```{r table_contMods, eval = F, echo=FALSE, results='asis'}
 df <- data.frame(
-  `Cognitive` = c(
+  `Mindset` = c(
     "[45indv + 46comm]",
-    "mindsetCNI.cog",
-    "ismCNI.cog",
-    "globeCNI.cog",
-    "globeExCNI.cog",
-    "fantcCNI.cog",
-    "mfCNI.cog",
-    "socAxCNI.cog",
-    "pty6CNI.cog"
-  ),
+     paste0(c("Mindset", "Isms", "Globe", "Globe (Extra items)", "Fanaticism", "Moral Foundations", "Social Axioms", "Personality 6"), " CNI ", "x Mindset variables")),
   `Personality` = c(
     "[8indv + 8comm]",
-    "cogCNI.pty",
-    "ismCNI.pty",
-    "globeCNI.pty",
-    "globeExCNI.pty",
-    "fantcCNI.pty",
-    "mfCNI.pty",
-    "socAxCNI.pty",
-    "pty6CNI.pty"
-  )
+    paste0(c("Mindset", "Isms", "Globe", "Globe (Extra items)", "Fanaticism", "Moral Foundations", "Social Axioms", "Personality 6"), " CNI ", "<- Personality variables"))
+ 
 )
 
-table_contMods <- kable(df, format = "pipe", align = c("c", "c")) %>%
+table_contMods <- kable(df,
+  format = "latex", align = c("l", "l"),
+   col.names = c("CNI ~ Mindset variables ", "CNI ~ Personality variables")) %>%
   kable_styling(full_width = FALSE) %>%
-  row_spec(0, bold = TRUE) %>%
+  row_spec(0, bold = TRUE,
+           ) %>%
   row_spec(1) %>%
   add_header_above(c(" " = 2), bold = TRUE)
 ```
 
- 16 Tables for every CNI type 
- 
- `r table_contMods`
 
 
 Given the large _n_, especially for cogCNI profiles and the total number of moderators, it will be necessary to use parallel processing for this analysis. It significantly reduces computation time for multiple independent tasks.
@@ -1170,7 +1175,6 @@ save(pty6CNI.pty_effects,
      file = here("objects/Study2/pty6CNI.pty_effects.Rdata"))
 ```
 
-
 ```{r load-cni.ContMod-models, echo = F, results='hide'}
 # Define a vector of file names
 cni.contMod_object_names <- paste0(
@@ -1202,7 +1206,7 @@ specify_var_names <- \(data){
     modtr = case_when(
       
       #Personality
-      str_detect(modtr, "Con") ~ "Conscientiousness",
+      str_detect(modtr, "Consc") ~ "Conscientiousness",
       str_detect(modtr, "Hon") ~ "Honesty",
       str_detect(modtr, "Agr") ~ "Agreeableness",
       str_detect(modtr, "Res") ~ "Resilience",
@@ -1213,7 +1217,7 @@ specify_var_names <- \(data){
      str_detect(modtr, "Dynamism") ~ "Social Dynamism",
 
       
-      #Cognitive 
+      #Mindset
       
              #Isms
       str_detect(modtr, "Isms_TradRelig") ~ "Traditional Religiousness", 
@@ -1298,9 +1302,73 @@ specify_var_names <- \(data){
 }
 ```
 
-```{r fun.-cni.ContMod-effects-table}
-cni.ContMod_effects_table <- \(data, title){
 
+```{r cni.contMod-tbl-details}
+
+CNIplot_data_details = tibble(
+  mod_names = c(
+    "mindsetCNI_plot",
+    "ismCNI_plot",
+    "globeCNI_plot",
+    "globeExCNI_plot",
+    "fantcCNI_plot",
+    "mfCNI_plot",
+    "socAxCNI_plot",
+    "pty6CNI_plot"
+  ),
+  caption = c(
+    "Mindset CNI",
+    "Isms-Mindset CNI",
+    "Globe-Mindset CNI",
+    "Globe (Extra items)",
+    "Fanaticism-Mindset CNI",
+    "Moral Foundations-Mindset CNI",
+    "Social Axioms-Mindset CNI",
+    "Personality6 CNI"
+  )
+)
+
+
+cni.contMod_object_names <- c(
+  "mindsetCNI.mindset_effects.Rdata",
+  "mindsetCNI.pty_effects.Rdata",
+  "ismCNI.mindset_effects.Rdata",
+  "ismCNI.pty_effects.Rdata",
+  "globeCNI.mindset_effects.Rdata",
+  "globeCNI.pty_effects.Rdata",
+  "globeExCNI.mindset_effects.Rdata",
+  "globeExCNI.pty_effects.Rdata",
+  "fantcCNI.mindset_effects.Rdata",
+  "fantcCNI.pty_effects.Rdata",
+  "mfCNI.mindset_effects.Rdata",
+  "mfCNI.pty_effects.Rdata",
+  "socAxCNI.mindset_effects.Rdata",
+  "socAxCNI.pty_effects.Rdata",
+  "pty6CNI.mindset_effects.Rdata",
+  "pty6CNI.pty_effects.Rdata"
+)
+
+cni.contMod_tbl_details <- tibble(
+  object_names = names(all_cni.contMod_effects)) %>%
+  mutate(obj_name = str_extract(object_names, "^[^.]+")) %>%
+  left_join(
+    CNIplot_data_details %>%
+      mutate(mod_name = str_remove(mod_names, "_plot$")),
+    by = c("obj_name" = "mod_name")) %>%
+  select(object_names, caption) %>% 
+  mutate(
+    CNI_type = case_when(
+      str_detect(object_names, ".mindset") ~ "Mindset",
+      str_detect(object_names, ".pty") ~ "Personality",
+      TRUE ~ NA_character_  # for any cases that don't match either condition
+    )) %>%
+  mutate(caption = paste0("Associations between ",caption, " and ", CNI_type, " variables")) %>% 
+  select(object_names, caption, CNI_type)
+```
+
+
+```{r fun.-cni.ContMod-effects-tbl}
+cni.ContMod_effects_table <- \(data, title){
 df2 <- data %>% 
     #specify the correct variable/moderator name
     specify_var_names()%>% 
@@ -1327,61 +1395,56 @@ df2 %>%
   kable(booktabs = T, 
         escape = F,
         format = "latex",
+        longtable = TRUE,
         col.names = c(" ", "Est", "95\\% CI", "p", "Est", "95\\% CI", "p"),
-        caption = title) %>% 
+        caption = title ) %>%  #pluck(caption_options,  deparse(substitute(data)))) %>% 
   kable_styling() %>% 
   add_header_above(c(" ", "Linear (b)" = 3, "Quadratic (b^2)" = 3)) %>% 
      group_rows("Individual level", 1, no.modtrs) %>% 
   group_rows("Country level", no.modtrs+1, no.modtrs*2) %>%
-kable_styling(latex_options = c("repeat_header"))
- 
+kable_styling(latex_options = c("repeat_header", "longtable"))%>% 
+      column_spec(1, width = "5cm")
+
 }
+
 ```
 
 
-```{r cni.contMod_tbl_details}
-cni.contMod_tbl_details <- tibble(
-  object_names = str_remove(cni.contMod_object_names, "\\.Rdata$")) %>%
-  mutate(obj_name = str_extract(object_names, "^[^.]+")) %>%
-  left_join(
-    CNIplot_data_details %>%
-      mutate(mod_name = str_remove(mod_names, "_plot$")),
-    by = c("obj_name" = "mod_name")) %>%
-  select(object_names, caption) %>% 
-  mutate(
-    CNI_type = case_when(
-      str_detect(object_names, ".mindset") ~ "Mindset",
-      str_detect(object_names, ".pty") ~ "Personality",
-      TRUE ~ NA_character_  # for any cases that don't match either condition
-    )) %>%
-  mutate(caption = paste0("Associations between ",caption, " and ", CNI_type, " variables")) %>% 
-  select(object_names, caption, CNI_type)
-```
+```{r cni.MindsetMod-effects-tbl, results='asis'}
 
-```{r tbl-cni.mindset, results='asis'}
 cni.contMod_tbl_details %>% 
   filter(CNI_type == "Mindset") %>%
-  pwalk(function(object_names, caption, CNI_type) {
-    cat("\n\n") 
-    data <- get(object_names, envir = .GlobalEnv)
-    table <- cni.ContMod_effects_table(data, caption)
-    print(table)
-    cat("\n\n") 
+  pwalk(function(object_names, caption, ...) {
+    cat("\n\n")
+    print(
+      pluck(all_cni.contMod_effects, object_names) %>% 
+        cni.ContMod_effects_table(., caption)
+    )
+    cat("\n\n")
   })
 ```
 
-```{r tbl-cni.pty, results='asis'}
-# For Personality tables
+```{r cni.PersonalityMod-effects-tbl, results='asis'}
+
 cni.contMod_tbl_details %>% 
   filter(CNI_type == "Personality") %>%
-  pwalk(function(object_names, caption, CNI_type) {
-cat("\n\n")  
-    data <- get(object_names, envir = .GlobalEnv)
-    table <- cni.ContMod_effects_table(data, caption)
-    print(table)
-cat("\n\n")  
+  pwalk(function(object_names, caption, ...) {
+    cat("\n\n")
+    print(
+      pluck(all_cni.contMod_effects, object_names) %>% 
+        cni.ContMod_effects_table(., caption)
+    )
+    cat("\n\n")
   })
 ```
+
+
+
+```{r}
+#| include: false
+#knitr::opts_chunk$set(eval = FALSE)
+```
+
 
 #Plots: cni.ContMod ~ effects
 ```{r fun.-cni.ContMod-effects-plot}
@@ -1442,16 +1505,16 @@ color_mapping <- get_color_mapping(processed_data)
        # domain independent order
     theme_bw() +
     coord_flip()+
-  theme(text = element_text(family="serif", size = 10),
+  theme(text = element_text(family="serif", size = 12),
     legend.position = "bottom",
     axis.text.y = element_markdown(
       color = color_mapping[levels(processed_data$modtr)],
-      size = 6))
+      size = 9.1))
      
      return(final_plot)
 }
 
-library(tools)
+
 cni.mindset_effects_plot <- function(data, plot_type = c("domain dependent", "domain independent")) {
 processed_data <- data %>%
    # only linear effects
@@ -1513,7 +1576,7 @@ processed_data <- data %>%
   values = setNames(processed_data$colors, processed_data$domain),
   guide = guide_legend(
     position = "bottom",
-    ncol = 3,
+    ncol = 4,
     direction = "vertical"))  +
     scale_alpha_manual(
   values = c("Individual" = 1, "Country" = 0.4),
@@ -1539,8 +1602,8 @@ processed_data <- data %>%
     }
   ) +
   theme_bw() +
-  theme(axis.text.y = element_markdown(size = 8.8), 
-  text = element_text(family="serif")) +
+  theme(axis.text.y = element_markdown(size = 11), 
+  text = element_text(family="serif", size = 10)) +
   coord_flip()
   }else if(plot_type=="domain independent"){
     
@@ -1560,7 +1623,7 @@ color_mapping <- get_color_mapping(processed_data)
        # domain independent order
     theme_bw() +
     coord_flip()+
-  theme(text = element_text(family="serif", size = 9),
+  theme(text = element_text(family="serif", size = 9.1),
     axis.text.y = element_markdown(
       color = color_mapping[levels(processed_data$modtr)]
     ))
@@ -1622,7 +1685,7 @@ cni.contMod_tbl_details %>%
 ```
 
 ```{r walk-cni.ptyContMod-effects-plot3, results='asis', echo=FALSE}
-#| fig-height: 7
+#| fig-height: 6
 #| fig-width: 10
 #| out-width: "100%"
 #| cap-location: bottom
@@ -1649,46 +1712,26 @@ cni.contMod_tbl_details %>%
 ## RQ 3: CNI ~ Personality Categorical moderators
 
 
-```{r table_catMods, echo=FALSE}
+```{r table_catMods, echo=FALSE, eval=FALSE}
 df <- data.frame(
-  `All CNI Models` = c(
-    "[8]",
-    "cogCNI",
-    "ismCNI",
-    "globeCNI",
-    "globeExCNI",
-    "fantcCNI",
-    "mfCNI",
-    "socAxCNI",
-    "pty6CNI"
-  ),
-  `Categorical moderators` = c(
-    "[6]",
-    "sex",
-    "family_home",
-    "mother_edu",
-    "father_edu",
-    "age_group",
-    "language_admin",
-    "",
-    ""
-  )
-)
+  `models` = c(
+     paste0(c("Mindset", "Isms", "Globe", "Globe (Extra items)", "Fanaticism", "Moral Foundations", "Social Axioms", "Personality 6"), " CNI <- ", c("Sex", "Family Home", "Mother's education", "Father's education", "Age group"))
+ ))
 
-table_catMods <- kable(df, format = "pipe", align = c("l", "l")) %>%
+table_catMods <- kable(df, format = "latex", align = c("l", "l")) %>%
   kable_styling(full_width = FALSE) %>%
   row_spec(0, bold = TRUE) %>%
   row_spec(1, italic = TRUE) %>%
   add_header_above(c(" " = 2), bold = TRUE)
 ```
 
-`r table_catMods`
+
 
 
 
 # cogCNI x Categorical moderators
 
-cogCNI being the most complex model, it required a different approach for running parallel processing. Here the models are computed first followed by assesing the contrasts between different groups. 
+Mindset CNI being the most complex model, it required a different approach for running parallel processing. Here the models are computed first followed by assesing the contrasts between different groups. 
 
 ```{r cogCNI.catMod-models}
 cni.CatMod_effects_models <- function(cni_profiles_data, modtr_cat) {
@@ -1764,8 +1807,6 @@ save(mindsetCNI.CatMod_effects_models,
      file = here("objects/Study2/mindsetCNI.CatMod_effects_models.Rdata"))
 ```
 
-
-
 ```{r echo = F, eval=TRUE}
 load("~/Desktop/CNI_Dissertation/objects/Study2/mindsetCNI.CatMod_effects_models.Rdata")
 ```
@@ -1799,7 +1840,7 @@ sig_groups1 <- \(df, var, cni_name, sig.only = FALSE) {
       as.data.frame()
  
   
-  cap <-paste0("Significant differences in ", cni_name, " by ", var_name_cap, ".")
+  cap <-paste0("Differences in ", cni_name, " by ", var_name_cap, ".")
   
   if (sig.only) {
     trends <- filter(trends, p.value < .05)
@@ -1820,7 +1861,7 @@ sig_groups1 <- \(df, var, cni_name, sig.only = FALSE) {
             format = "latex",
              col.names = c("Contrast", "Est", "SE", "Z", "p")) %>% 
       kable_styling(latex_options = c("repeat_header")) %>% 
-      column_spec(1, width = "5cm")
+      column_spec(1, width = "7cm")
   }
 }
 ```
@@ -1837,11 +1878,6 @@ walk(var_names, function(var) {
 })
 ```
 
-
-```{r}
-#| include: false
-#knitr::opts_chunk$set(eval = FALSE)
-```
 
 Here one function computes the model, assesses the model fit using the Type III sum of squares (of interest is to what extent does the moderator interaction explain variability in the model, above and beyond other main and random effects). The significant contrasts for each model are retained. 
 
