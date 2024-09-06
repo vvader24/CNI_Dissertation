@@ -38,12 +38,13 @@ editor: source
 ---
 
 ```{r eval=FALSE, echo=FALSE}
-#Notes: For code chunks that have `DONT-RUN` in their labels involve computations that take longer or require parallel processing. These will be typically followed by code for loading objects that have been saved after running these chunks. 
+#Notes: For code chunks that have `DONT-RUN` in their labels involve computations that take longer, require parallel processing or higher GPUs. These will be typically followed by code for loading objects that have been saved after running these chunks. 
 ```
 
 
 
 # Data set up
+The data, originally in the .sav format, is identified by labels for each set of items. Scale scores for individual and community (here, country) level are computed for each measure. 
 
 ```{r Libraries}
 
@@ -117,9 +118,6 @@ all_vars_d <- tibble(all_vars = names(all_data2)) %>%
       str_detect(all_vars, "^DRI\\d{2}$") ~ "DRI",
       TRUE ~ all_vars
     ))
-
-
-  #all_vars_d %>% distinct(domain) %>% View()
 
 
 #get all item numbers for each domain
@@ -341,7 +339,8 @@ scM_globe_igc.indv = compute_trait_score(.,
             str_subset(item_names("Globe"), "^g.*igc.*$")),
    # Institutional Collectivism
 scM_globe_ic.indv = compute_trait_score(.,
-            str_subset(item_names("Globe"), "^g.*ic.*$")[-c(3,4)], str_subset(item_names("Globe"), "^g.*ic.*$")[c(3,4)]),
+            str_subset(item_names("Globe"), "^g.*ic.*$")[-c(3,4)],
+            str_subset(item_names("Globe"), "^g.*ic.*$")[c(3,4)]),
     # Performance Orientation/Achievement
 scM_globe_pf.indv = compute_trait_score(.,
             str_subset(item_names("Globe"), "^g.*pf.*$")[-4], 
@@ -409,7 +408,7 @@ mutate(
 ```
 
 ```{r DescriptiveTable, echo = F}
-#| label: tbl-descriptive
+#| label: tbl-DescriptiveTable
 #| tbl-cap: "Descriptive statistics for the whole sample"
 
 data2 %>%
@@ -446,9 +445,13 @@ group_rows("Father's Education", 24, 33) %>%
 group_rows("Language of Administration", 34, 51) 
 ```
 
-# CNI Models
+# RQ 1: How to quantify CNI? 
+
+Similar to Study 1, CNI is estimated using a Random slope Multilevel model (varying slopes and fixed intercepts) wherein items nested within person [pID] (Weston,2024). This model accounts for the nested nature of our data, where individual items are clustered within each participant. As responses are ipsatized (standardized within participant), the resulting slope estimates can be interpreted as correlation estimates.
+\n
 For study 2, eight CNI models are computed:
 
+:::{#note-CNI-models .callout-note title="CNI Models" icon=false}
 1. Mindset CNI: consisting of all mindset items 
 2. Isms CNI
 3. Globe CNI: Original Globe items by House et al.
@@ -457,14 +460,20 @@ For study 2, eight CNI models are computed:
 6. Fanaticism CNI
 7. Social Axioms CNI
 8. Personality 6 CNI: consisting of Big 6 items
+:::
+
+
+The Mindset-CNI and Personality6-CNI encompass distinct domains of psychological measurement, while the remaining CNI types can be viewed as subcomponents or specialized facets within the broader Mindset-CNI framework. Mindset-CNI therefore is the most comprehensive of all the CNI types explored here. 
 
 ```{r funs.-model_CNI}
 # functions for computing CNIs
 
-#item names for CNI type
+#item names for every CNI type
 get_item_names <- \(CNI_type, data) {
   domains <- switch(CNI_type,
-    "Mindset" = c("Isms", "Fanaticism", "Social_Axioms", "Values", "Tight_Lose", "Material", "Amoralism", "Ethnonational", "Indv_Collectivism", "Globe", "Globe_extra", "Moral_Foundations", "Family_Values","Machiavellianism","Prone_Aggr"),
+    "Mindset" = c("Isms", "Fanaticism", "Social_Axioms", "Values", "Tight_Lose", "Material", 
+                  "Amoralism", "Ethnonational", "Indv_Collectivism", "Globe", "Globe_extra", 
+                  "Moral_Foundations", "Family_Values","Machiavellianism","Prone_Aggr"),
     "pty6" = c("Personality6"),
     "Fanaticism" =c("Fanaticism"),
     "Isms" =c("Isms"),
@@ -487,7 +496,8 @@ get_item_names <- \(CNI_type, data) {
   return(item_names)
 } 
 
-#ipsatize/standardize scores
+#ipsatize/within person standardize scores
+  #scores are ipsatized before CNI's are computed
 ipsatize <- \(x){
   value <- (x-mean(x, na.rm=T))/(sd(x, na.rm=T)) 
   return(value)
@@ -541,12 +551,6 @@ overallM_profiles <- self.ctry_profiles %>%
 return(lst(self.ctry_profiles, overallM_profiles)) #set_names() to the input object names
 
 } 
-
-#computing CNI
-add_CNIformula <- \(data){
-  lmer(z_response ~ z_ctry_response + overall.M + (-1 + z_ctry_response|country/pID), data = data)
-  }
-
 ```
 
 ```{r CNI-profiles}
@@ -572,7 +576,10 @@ socAxCNI_profiles <- compute_profiles(socAxCNI_items)
 ```
 
 ```{r DONT-RUN-fit-all-cni-mods, eval=FALSE, echo=TRUE}
-
+#formula for computing CNI
+add_CNIformula <- \(data){
+  lmer(z_response ~ z_ctry_response + overall.M + (-1 + z_ctry_response|country/pID), data = data)
+}
 
 mindsetCNI_mod <- mindsetCNI_profiles$self.ctry_profiles %>% 
   full_join(cogCNI_profiles$overallM_profiles, by = "item") %>% add_CNIformula(.)
@@ -610,7 +617,8 @@ load(here("objects/Study2/all_CNI.mods_study2.Rdata"))
 
 
 
-## CNI - heterogeneity
+## CNI - model heterogeneity
+The Eight models vary in the number of items and domains of psychological measures. 1. The Parallel Analysis computed here, identify the optimum number of dimensions that the data for every CNI type can be reduced to. The optimum number of dimensions are retained based on the comparison of eigenvalues of the actual data and those of randomly generated data sets. Dimensions are retained when their eigenvalues exceed those of the random data, ensuring that only factors accounting for more variance than would be expected by chance are retained. 2. Principal Components that explain at least 50% of variance are identified. 
 
 ```{r fun.-heterogeneity}
 # Function to calculate heterogeneity
@@ -632,7 +640,8 @@ compute_heterogeneity <- function(data) {
   }
   
   # Perform parallel analysis using correlation matrix
-  pa_result <- fa.parallel(cor_matrix, n.obs = nrow(data), fa = "fa", fm = "minres", show.legend = FALSE, plot = FALSE)
+  pa_result <- fa.parallel(cor_matrix, n.obs = nrow(data), fa = "fa",
+      fm = "minres", show.legend = FALSE, plot = FALSE)
   
   tibble(
     n_items = ncol(data),
@@ -649,10 +658,10 @@ heterogeneity_stats <- map_dfr(
    Mindset = select(data2, 
                get_item_names("Mindset",
                               all_vars_d)),
-  Globe = select(data2,
+   Globe = select(data2,
                 get_item_names("Globe",
                               all_vars_d)),
-   Globe = select(data2,
+   GlobeEx = select(data2,
                 get_item_names(c("Globe_extra"),
                               all_vars_d)),
    Isms = select(data2,
@@ -684,25 +693,29 @@ save(heterogeneity_stats,
 load(here("objects/Study2/heterogeneity_stats_study2.Rdata"))
 ```
 
-```{r tbl-heterogeneity, results='asis'}
+```{r tbl-heterogeneity, results='asis', eval=T, echo=F}
+#| label: tbl-heterogeneity
+#| tbl-cap: "CNI Model complexity"
+
 heterogeneity_stats %>% 
    mutate(cni_type = str_replace_all(cni_type, "_", " ")) %>% 
   kable(booktabs = T, 
         escape = F,
         format = "latex",
-        col.names = c("CNI type", "No. items", "Parallel analysis", "PCA"),
-        caption = "Model complexity") %>% 
+        col.names = c("CNI type", "No. items", "Parallel analysis", "PCA")) %>% 
   kable_styling() %>% 
      group_rows("Mindset", 1, 7) %>%
      group_rows("Personality", 8, 8) 
+
 ```
 
-```{r plot-heterogeneity}
+```{r plot-heterogeneity, eval=T, echo=F}
 #| fig-height: 6
 #| fig-width: 10
 #| out-width: "100%"
 #| cap-location: bottom
 #| fig-cap: "Model Complexity Measures Across CNI Types"
+#| label: plot-heterogeneity
 
 heterogeneity_stats %>%
   pivot_longer(cols = c(pa, pca_50), names_to = "metric", values_to = "value") %>%
@@ -724,13 +737,16 @@ ggplot(., aes(x = x_label, y = value, color = metric, group = metric)) +
 
 ```
 
+@fig-plot-heterogeneity indicates that as the item count increases, so does the number of identifiable dimensions, indicating higher model complexity. The Fanaticism CNI, despite having only 17 items, has been included here to maintain consistency with Study 1 and provide a basis for comparison.  Notably, the Mindset CNI exhibits a markedly higher complexity, with nearly four times as many dimensions as the other CNI models. 
+
+
 ## CNI plots
+
 
 ```{r fun.-plot_CNI, echo=FALSE}
 #Functions
 #model1_est = tidy(model1, conf.int = T)
 
-#this function does not work with map for some reason, the color mapping does not work!! 
 plot_CNI <- function(model_obj) {
   # Get the name of the object passed to the function
   obj_name <- deparse(substitute(model_obj))
@@ -769,6 +785,7 @@ y = conf.low,yend = conf.high),
     geom_histogram(binwidth = .03, color = "white", fill = plot_color) +
     labs(x = "CNI coefficient", y = "Frequency", title = title) +
     scale_x_continuous(limits = c(-0.3, 0.92))+
+     scale_y_continuous(limits = c(0, 1000))+
     theme_bw()
   
   return(lst(coefficient_plot,hist_plot ))
@@ -815,7 +832,6 @@ patch_CNIplots <- \(plot_list){
 }
 ```
 
-
 ```{r print-patch_CNIplots-details}
 # Create a list of plot objects and their corresponding titles
 CNIplot_data <- lst(
@@ -842,7 +858,6 @@ CNIplot_data_details <- tibble(
 )
 ```
 
-
 ```{r print-patch_CNIplots}
 #| fig-height: 5
 #| fig-width: 10
@@ -863,6 +878,7 @@ walk(names(CNIplot_data), \(mod_names) {
   })
 
 ```
+
 
 
 ## CNI models summary
@@ -927,7 +943,6 @@ load(here("objects/Study2/CNI-ctry-trends2.Rdata"))
 ```
 
 
-
 ```{r fun.-oneCoef-plot, echo = F, eval = F}
 #One coefficient plot at a time!
 plotCNI_ctry_trends <- \(slope_data){
@@ -985,7 +1000,7 @@ all_mods_ctry.trends %>%
   theme_bw() +
   theme(plot.title.position = "plot",
         legend.position = "bottom", 
-        text = element_text(family = "serif", size = 11))
+        text = element_text(family = "serif", size = 12))
 ```
 
 ```{r ctry-trends-8models-plot, echo=F, eval=T}
@@ -999,8 +1014,8 @@ all_mods_ctry.trends %>%
   as_tibble() %>% 
   mutate(model = str_extract(model, "^[^_]+")) %>% 
   select(model, country, estimate, conf.low, conf.high) %>%
-  mutate(alpha = ifelse(model %in% c("pty6CNI", "cogCNI"), 1, 0.5),
-         errorbar_size = ifelse(model %in% c("pty6CNI", "cogCNI"), .8, 0.4)) %>%
+  mutate(alpha = ifelse(model %in% c("pty6CNI", "mindsetCNI"), 1, 0.5),
+         errorbar_size = ifelse(model %in% c("pty6CNI", "mindsetCNI"), .8, 0.4)) %>%
   ggplot(aes(x = reorder(country, estimate), y = estimate, color = model, linetype = model)) +
   geom_errorbar(aes(ymin = conf.low, ymax = conf.high, alpha = alpha, size = errorbar_size),
                 position = position_dodge(width = 0.5), width = 0.4) +
@@ -1013,18 +1028,18 @@ all_mods_ctry.trends %>%
   scale_size_identity() +
   scale_linetype_manual(values = c("globeCNI"  ="dashed", "globeExCNI"  ="dashed","ismCNI"  ="dashed", "fantcCNI"  ="dashed",
 "mfCNI"  = "dashed", "socAxCNI"  = "dashed",
-     "cogCNI" = "solid", "pty6CNI" = "solid")) +
+     "mindsetCNI" = "solid", "pty6CNI" = "solid")) +
   labs(x = NULL, y = "CNI",
        color = "Model") +
   coord_flip() +
   theme_bw() +
   theme(plot.title.position = "plot",
         legend.position = "bottom", 
-        text = element_text(family = "serif", size = 11)) +
+        text = element_text(family = "serif", size = 12)) +
   guides(linetype = "none", alpha = "none", size = "none")
 ```
 
-
+@fig-ctry-trends-2models-plot and @fig-ctry-trends-8models-plot display CNI estimates for all countries ranging from overall highest to lowest values. 
 
 
 
@@ -1291,7 +1306,7 @@ specify_var_names <- \(data){
   #Duke Religiosity Index
     str_detect(modtr, "DRI_OrgRelgAc") ~ "Organizational Religious Activity",
     str_detect(modtr, "DRI_NonOrgRelgAc") ~ "Non-organizational Religious Activity",
-    str_detect(modtr, "DRI_IntrnscRelg") ~ "ntrinsic religiosity",
+    str_detect(modtr, "DRI_IntrnscRelg") ~ "Intrinsic religiosity",
       
     #Civic Multicultural Nationalism
       str_detect(modtr, "CivicMCNational") ~ "Civic Multicultural Nationalism",
@@ -1403,7 +1418,7 @@ df2 %>%
      group_rows("Individual level", 1, no.modtrs) %>% 
   group_rows("Country level", no.modtrs+1, no.modtrs*2) %>%
 kable_styling(latex_options = c("repeat_header", "longtable"))%>% 
-      column_spec(1, width = "5cm")
+      column_spec(1, width = "5.36cm")
 
 }
 
