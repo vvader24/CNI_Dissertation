@@ -1115,9 +1115,221 @@ cni.ContMod_effects <- function(cni_profiles_data, modtr_pattern) {
   return(output)
 }
 
+cni.ContMod_effects_try <- function(cni_profiles_data, modtr_pattern) {
+  
+  # Determine the level based on the modtr_pattern
+  level <- if(grepl("indv", modtr_pattern)) "Individual" else if(grepl("comm", modtr_pattern)) "Country" else "Unknown"
+
+  #right data format
+  cni.modtr_data <- data2 %>% 
+    #select moderator scales individual level (pID) scores 
+    #---$select moderators$ - specify regex
+    select(pID, matches(modtr_pattern)) %>% 
+    #mean centering the moderator score cols
+    #since this standardization is col-wise, running pty7 is not an issue
+    mutate_if(is.numeric, 
+              ~. - mean(., na.rm = TRUE)) %>% 
+    pivot_longer(-pID, 
+                 names_to = "modtr", #moderator name
+                 values_to = "modtr_score") %>% # moderator score
+    full_join(cni_profiles_data, by = c("pID"), relationship = "many-to-many")
+  
+  #CNI <- moderator
+  cni.modtr_models <- cni.modtr_data %>%
+    tidyr::nest(data = -modtr) %>%
+    mutate(
+      #cni ~ mod
+      mod.linear = map(data, ~lmer(z_response ~ z_ctry_response * modtr_score + (-1 + z_ctry_response | pID), data = .)),
+      #cni ~ mod + mod^2
+      mod.quadratic = map(data, ~lmer(z_response ~ z_ctry_response * modtr_score + z_ctry_response * I(modtr_score^2) + (-1 + z_ctry_response | pID), data = .)),
+      
+      #save results
+      tidy_mod.linear = map(mod.linear, tidy, conf.int = TRUE),
+      tidy_mod.quadratic = map(mod.quadratic, tidy, conf.int = TRUE)
+    )
+  
+  results_linear <- cni.modtr_models %>% 
+    select(modtr, tidy_mod.linear) %>% 
+    unnest(cols = c(tidy_mod.linear)) %>%
+    filter(term == "z_ctry_response:modtr_score") %>% 
+    select(modtr, term, estimate, conf.low, conf.high, p.value) %>% 
+    mutate(relation = "linear")
+  
+ results_quadratic <- cni.modtr_models %>% 
+    select(modtr, tidy_mod.quadratic) %>% 
+    unnest(cols = c(tidy_mod.quadratic)) %>%
+    filter(term %in% c("z_ctry_response:I(modtr_score^2)", "z_ctry_response:modtr_score")) %>%
+    select(modtr, term, estimate, conf.low, conf.high, p.value)%>% 
+    mutate(relation = "quadratic")
+  
+  output <- bind_rows(
+    !!level := results_linear,
+    !!level := results_quadratic,
+    .id = "level"
+  )
+  
+  return(output)
+}
+
+try = cni.ContMod_effects_try(pty6CNI_profiles$self.ctry_profiles, "^scP.*indv$")
+
+
+names(all_cni.contMod_effects)
+try %>% View()
+
+cni.ContMod_effects_quad.b <- function(cni_profiles_data, modtr_pattern) {
+  # Determine the level based on the modtr_pattern
+  level <- if(grepl("indv", modtr_pattern)) "Individual" else if(grepl("comm", modtr_pattern)) "Country" else "Unknown"
+
+
+  #right data format
+  cni.modtr_data <- data2 %>% 
+    #select moderator scales individual level (pID) scores 
+    #---$select moderators$ - specify regex
+    select(pID, matches(modtr_pattern)) %>% 
+    #mean centering the moderator score cols
+    #since this standardization is col-wise, running pty7 is not an issue
+    mutate_if(is.numeric, 
+              ~. - mean(., na.rm = TRUE)) %>% 
+    pivot_longer(-pID, 
+                 names_to = "modtr", #moderator name
+                 values_to = "modtr_score") %>% # moderator score
+    full_join(cni_profiles_data, by = c("pID"), relationship = "many-to-many")
+  
+  #CNI <- moderator
+  cni.modtr_models <- cni.modtr_data %>%
+    tidyr::nest(data = -modtr) %>%
+    mutate(
+      #cni ~ mod + mod^2
+      mod.quadratic = map(data, ~lmer(z_response ~ z_ctry_response * modtr_score + z_ctry_response * I(modtr_score^2) + (-1 + z_ctry_response | pID), data = .)),
+      
+      #save results
+      tidy_mod.quadratic = map(mod.quadratic, ~tryCatch(
+        broom.mixed::tidy(., conf.int = TRUE),
+        error = function(e) {
+          message("Error in tidy: ", conditionMessage(e))
+          NULL
+        }
+      ))
+    )
+  
+  
+  results_quadratic <- cni.modtr_models %>% 
+    select(modtr, tidy_mod.quadratic) %>% 
+    unnest(cols = c(tidy_mod.quadratic)) %>%
+    filter(term == "z_ctry_response:modtr_score") %>%
+    select(modtr, term, estimate, conf.low, conf.high, p.value) %>% 
+    mutate(relation = "quadratic")
+  
+  output <- bind_rows(
+    !!level := results_quadratic,
+    .id = "level"
+  )
+  
+  return(output)
+}
+
+try = cni.ContMod_effects_quad.b(ismCNI_profiles$self.ctry_profiles, "^scP.*indv$")
 ```
 
 
+```{r}
+## [1] "mindsetCNI.mindset_effects"
+##  [2] "mindsetCNI.pty_effects"  
+##  [3] "ismCNI.mindset_effects"    
+##  [4] "ismCNI.pty_effects"        
+##  [5] "globeCNI.mindset_effects"  
+##  [6] "globeCNI.pty_effects"      
+##  [7] "globeExCNI.mindset_effects"
+##  [8] "globeExCNI.pty_effects"    
+##  [9] "fantcCNI.mindset_effects"  
+## [10] "fantcCNI.pty_effects"      
+## [11] "mfCNI.mindset_effects"     
+## [12] "mfCNI.pty_effects"         
+## [13] "socAxCNI.mindset_effects"  
+## [14] "socAxCNI.pty_effects"      
+## [15] "pty6CNI.mindset_effects"   
+## [16] "pty6CNI.pty_effects"     
+```
+
+
+```{r parallel-processing-contMod, echo = F, eval = F}
+# Load necessary libraries
+library(furrr)
+library(purrr)
+library(tictoc)
+
+# Set up parallel processing
+plan(multisession, workers = availableCores() - 1)
+
+tic()
+# Get the list of moderator variables
+patterns <- c("^scM.*indv$", "^scM.*comm$")
+var_names <- grep(paste(patterns, collapse = "|"), names(data2), value = TRUE)
+
+#checklist
+#1. check if the patterns are correct 
+    #["^scM" for mindset moderators; "^scP" for personality moderators]
+#2.change the name of the object
+#3. change the data_profiles
+#4. save the object in Study 2
+
+# Parallel execution using furrr
+mindsetCNI.mindset_effects_b<- future_map_dfr(var_names, function(var) {
+  result <- cni.ContMod_effects_quad.b(mindsetCNI_profiles$self.ctry_profiles, var)
+  result$variable <- var  # Add the variable name to the result
+  return(result)
+}, .progress = TRUE)
+
+
+# Reset to sequential processing
+plan(sequential)
+toc()
+
+#View(ismCNI.pty_effects_b)
+```
+
+```{r eval=FALSE}
+
+#checklist 
+#1. change name of the object  
+#2. DANGER: change name of the objet being saved
+#use the following to save each or collected chunks in the code above
+save(mindsetCNI.mindset_effects_b,
+     file = here("objects/Study2/temp/mindsetCNI.mindset_effects_b.Rdata"))
+```
+
+```{r}
+#Models I have run and saved:
+
+#mindsetCNI.pty_effects_b
+#mindsetCNI.mindset_effects_b
+
+#ismCNI.pty_effects_b
+#ismCNI.mindset_effects_b
+
+#globeCNI.pty_effects_b
+#globeCNI.mindset_effects_b
+
+#globeExCNI.pty_effects_b
+#globeExCNI.mindset_effects_b
+
+#fantcCNI.pty_effects_b
+#fantcCNI.mindset_effects_b
+
+#mfCNI.pty_effects_b
+#mfCNI.mindset_effects_b
+
+#socAxCNI.pty_effects_b
+#socAxCNI.mindset_effects_b
+
+#pty6CNI.pty_effects_b
+#pty6CNI.mindset_effects_b
+
+```
+
+
+#-----------------------
 
 ```{r table_contMods, eval = F, echo=FALSE, results='asis'}
 df <- data.frame(
@@ -1139,6 +1351,7 @@ table_contMods <- kable(df,
   row_spec(1) %>%
   add_header_above(c(" " = 2), bold = TRUE)
 ```
+
 
 
 
@@ -1211,6 +1424,8 @@ purrr::pmap(.l = list(.x = names(all_cni.contMod_effects), .y = all_cni.contMod_
 # Verify that objects are now in the global environment
 #map_lgl(names(files), ~exists(.x, envir = .GlobalEnv))
 ```
+
+
 
 
 ```{r fun.-specify-var-names}
@@ -1931,7 +2146,7 @@ cni.CatMod_effects <- function(cni_profiles_data, modtr_cat) {
       
       #save results
   #2. model fit   
-   model_fit <- Anova(cni.modtr_model, type = "III", test.statistic = "F") %>%                     tidy()
+   model_fit <- Anova(cni.modtr_model, type = "III", test.statistic = "F") %>%  tidy()
    #3. contrasts
    trends <- emtrends(cni.modtr_model, pairwise ~ modtr_score, 
          var = "z_ctry_response", 

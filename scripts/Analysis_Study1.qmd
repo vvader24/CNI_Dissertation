@@ -339,153 +339,6 @@ data1 %>%
 
 @tbl-descriptive indicates the sample details for all eight countries in this dataset.
 
-# Measurement Invariance - Subjective Well-being
-SWB is one of the outcome predictors in this study which warrants measurement invariance procedure. 
-```{r MeasurementInvariance-processing}
-swb_MI.data <- data1 %>% 
-  #swb items have been rescaled to a range of 1 to 5
-  dplyr::select(starts_with("swb"), country)
-
-swbModel = '
-f1 =~ swb1 + swb2 + swb3 + swb4 + swb5
-'
-#-----Configural invariance-----#
-swbModel.config <- measEq.syntax(
-  configural.model = swbModel, 
-  data = swb_MI.data, 
-  group = "country") # column name of group variable
-
-# fit the new model synatx to the data, 
-fit.config <- cfa(as.character(swbModel.config), 
-                  data = swb_MI.data, 
-                  group = "country")
-
-summary_config <- summary(fit.config, fit.measures = T)
-
-
-#-----Metric invariance-----#
-swbModel.metric <- measEq.syntax(
-  configural.model = swbModel, 
-  data = swb_MI.data, 
-  group = "country",
-  group.equal = c("loadings")) # column name of group variable
-
-
-fit.metric <- cfa(as.character(swbModel.metric), 
-                  data = swb_MI.data, 
-                  group = "country")
-
-summary_metric <- summary(fit.metric, fit.measures = T)
-
-#-----Scalar invariance-----#
-swbModel.scalar <- measEq.syntax(
-  configural.model = swbModel, 
-  data = swb_MI.data, 
-  group = "country",
-  group.equal = c("loadings", "intercepts")) # column name of group variable
-
-fit.scalar <- cfa(as.character(swbModel.scalar), 
-                  data = swb_MI.data, 
-                  group = "country")
-
-summary_scalar <- summary(fit.scalar, fit.measures = T)
-
-#-----Strict invariance-----#
-swbModel.strict <- measEq.syntax(
-  configural.model = swbModel, 
-  data = swb_MI.data, 
-  group = "country",
-  group.equal = c("loadings", "intercepts", "residuals")) # column name of group variable
-
-fit.strict <- cfa(as.character(swbModel.strict), 
-                  data = swb_MI.data, 
-                  group = "country")
-
-
-summary_strict <- summary(fit.strict, fit.measures = T)
-
-
-#-----all fit stats-----#
-fit_tbl <-  \(summary){
-fit_stats <- c("chisq", "pvalue", "df",  "rmsea",  "rmsea.ci.lower", "rmsea.ci.upper", "srmr", "tli", "cfi")
-
-get_all_fits <- \(summary, stat){
- fit_index <- summary$fit %>% 
-   pluck(stat)
- formatted_index <- format(round(fit_index, 2), nsmall = 2)
-    return(as.numeric(formatted_index))
-}
-
-df <- map2_df(.x = list(summary), .y = fit_stats, ~{
-  tibble(fit_stats = .y, values = get_all_fits(.x, .y))
-})
-
-# Transform the data
- df <- df %>% 
-    pivot_wider(names_from = "fit_stats", values_from = values) %>% 
-    mutate(
-      chisq = ifelse(pvalue < 0.05, glue("{chisq}**({df})"), glue("{chisq} ({df})")),
-      RMSEA = glue("{rmsea} ({rmsea.ci.lower}, {rmsea.ci.upper})")
-    ) %>% 
-  dplyr::select(-pvalue, -df, -rmsea, - rmsea.ci.upper, -rmsea.ci.lower) %>% 
-  rename("SRMR" = srmr,
-         "TLI" = "tli",
-         "CFI" = "cfi") %>% 
-  dplyr::select(chisq, RMSEA, everything())
-
-return(df)
-
-}
-
-# convert any input into a character string
-convert_to_char <- \(...) {
-  expr <- enquos(...)
-  char_vector <- map_chr(expr, quo_name)
-  return(char_vector)
-}
-
-#compute all the fit indices
-MI_table <- map_df(list(summary_config, summary_metric, summary_scalar, summary_strict), .f = fit_tbl) %>% 
- #add invariance type col
-  mutate(invariance_type = convert_to_char(Configural, Metric, Scalar, Strict),  .before = chisq) %>% 
- #add delta cols
- mutate(
-    temp_RMSEA = as.numeric(str_extract(RMSEA, "\\d+\\.\\d+")),
-    delta_CFI = c(NA, -diff(CFI)),
-    delta_RMSEA = c(NA, diff(temp_RMSEA)),
-    delta_SRMR = c(NA, diff(SRMR))
-  ) %>%
-  select(-temp_RMSEA)  
-
-```
-
-```{r MeasurementInvariance_Table}
-#| label: tbl-MeasureMentInvariance
-#| tbl-cap: "Measurement Invariance metrics for Subjective Well-being"
-
-options(knitr.kable.NA = '')
-
-MI_table %>% 
-  kable(format = "latex", 
-        booktabs = TRUE, 
-        escape = FALSE, 
-        col.names = c("Invariance type", "Chi square",
-                      colnames(MI_table)[3:6], 
-                      "Δ CFI", "Δ RMSEA", "Δ SRMR")) %>%
-  kable_styling(latex_options = c("hold_position"))
-```
-
-Measurement invariance was assessed (@tbl-MeasureMentInvariance) for testing cross-cultural comparability of the 5-item Life Satisfaction scale measuring subjective well-being, across eight nations in Study 1. A series of increasingly constrained multi-group confirmatory factor analysis models were employed to evaluate configural, metric, scalar, and strict invariance.
-
-- The `configural invariance` model, which tests for similarity in factor structure (pattern of zero and non-zero loadings) across groups showed acceptable fit (CFI = 0.94, TLI = 0.89, RMSEA = 0.13 \[90% CI: 0.11, 0.14\], SRMR = 0.04). While the CFI indicates acceptable fit (close to cutoff of ≥ 0.95), the TLI (based on typical cutoff for good fit: ≥ 0.95) and RMSEA (baed on typical cutoffs: < 0.05 for good fit, < 0.08 for reasonable fit) suggest some misfit.
-
-- The `metric invariance` model, which constrains factor loadings to be equal across groups, demonstrated a slight decrease in fit (CFI = 0.92, TLI = 0.91, RMSEA = 0.12 \[90% CI: 0.11, 0.13\], SRMR = 0.0753). The change in CFI (ΔCFI = 0.02, exceeds the recommended threshold of ≤ 0.01, but within the more lenient threshold of ≤ 0.02) and RMSEA (ΔRMSEA = -0.0100, within acceptable limits of  ≤ 0.015), indicating partial support for metric invariance. 
-
-- The `scalar invariance` model, which additionally constrains item intercepts to be equal across groups, showed a substantial decrease in fit (CFI = 0.78, TLI = 0.82, RMSEA = 0.17 \[90% CI: 0.16, 0.18\], SRMR = 0.13). The changes in fit indices (ΔCFI = 0.14, ΔRMSEA = 0.05, ΔSRMR = 0.05) far exceeded recommended thresholds, indicating that scalar invariance does not hold.
-
-- The strict invariance model, which also constrains residual variances to be equal across groups, exhibited a further decline in fit (CFI = 0.54, TLI = 0.72, RMSEA = 0.21 \[90% CI: 0.2, 0.21\], SRMR = 0.16), indicating that strict invariance is not tenable. 
-
-In summary, the SWB scale demonstrates partial support for configural and metric invariance across the eight nations, and there is evidence of non-invariance at scalar, and strict levels. These results suggest that while the basic structure of the scale could be similar across cultures, there may be differences in the strength of item-factor relationships, item intercepts, and item residuals across nations. Given the established complexity of SWB across cultures, we suggest that the readers approach the use of this construct with caution. 
 
 # Analyses
 ## RQ1: Computing CNI
@@ -660,12 +513,12 @@ load(here("objects/Study1/all_CNI.mods_study1.Rdata"))
 
 ## Measuring Model Complexity
 
-The Eight models vary in the number of items and domains of psychological measures. <\br>
+The Eight models vary in the number of items and domains of psychological measures.
 1. The Parallel Analysis computed here, identify the optimum number of dimensions that the data for every CNI type can be reduced to. The optimum number of dimensions are retained based on the comparison of eigenvalues of the actual data and those of randomly generated data sets. Dimensions are retained when their eigenvalues exceed those of the random data, ensuring that only factors accounting for more variance than would be expected by chance are retained. 
-2. Unrotated Principal Components that explain at least 50% of variance are identified. <\br>
+2. Unrotated Principal Components that explain at least 50% of variance are identified.
 These metrics provide quantitative measures of the underlying dimensionality and structure of each CNI.
 
-```{r fun.-heterogeneity, message=FALSE, warning=FALSE}
+```{r DONT-RUN-fun.-heterogeneity, message=FALSE, warning=FALSE, eval=F}
 # Function to calculate heterogeneity
 compute_heterogeneity <- function(data) {
   # Compute correlation matrix once - memory efficient
@@ -697,7 +550,7 @@ compute_heterogeneity <- function(data) {
 heterogeneity_stats <- map_dfr(
   list(
    Mindset = select(data1, 
-               get_item_names("mindset",
+               get_item_names("Mindset",
                               all_vars_d)),
   Globe = select(data1,
                 get_item_names("Globe",
@@ -720,7 +573,16 @@ heterogeneity_stats <- map_dfr(
 )
 ```
 
-```{r tbl-heterogeneity, results='asis'}
+```{r save-heterogeneity_stats, echo = F, eval = F}
+save(heterogeneity_stats, 
+     file = here("objects/Study1/heterogeneity_stats.Rdata"))
+```
+
+```{r load-heterogeneity_stats, echo = F}
+load(here("objects/Study1/heterogeneity_stats.Rdata"))
+```
+
+```{r tbl-heterogeneity, results='asis', message=F}
 #| tbl-cap: "Model complexity"
 #| label: tbl-heterogeneity
 
@@ -736,13 +598,17 @@ heterogeneity_stats %>%
 ```
 
 ```{r plot-heterogeneity, results='asis'}
+#| fig-height: 6
+#| fig-width: 10
+#| out-width: "100%"
 #| fig-cap-location: bottom
 #| fig-cap: "Model Complexity Measures Across CNI"
 #| label: plot-heterogeneity
 
 heterogeneity_stats %>%
   pivot_longer(cols = c(pa, pca_50), names_to = "metric", values_to = "value") %>%
-  mutate(x_label = paste0(cni_type, "\n(", n_items, " items)")) %>% 
+  mutate(x_label = paste0(cni_type, "\n(", n_items, " items)"),
+         x_label = reorder(x_label, n_items)) %>% 
 # Create the plot
 ggplot(., aes(x = x_label, y = value, color = metric, group = metric)) +
   geom_line() +
@@ -829,7 +695,6 @@ load(here("objects/Study1/all_CNImods_plots.Rdata"))
 ```
 
 
-
 ```{r fun.-patch_CNIplots, echo = FALSE}
 patch_CNIplots <- \(plot_list){
   
@@ -871,6 +736,7 @@ cni_plot_details %>%
 ```
 
 ```{r DONT-RUN-create-tbl-cni-mods, echo = T, eval = F}
+options(modelsummary_get = "easystats")
 CNImods_table1 <- modelsummary(
   list("Mindset" = mindsetCNI_mod,
        "Ism" = ismCNI_mod,
@@ -892,14 +758,11 @@ CNImods_table1 <- modelsummary(
              fmt = "%.2f",
              output = "kableExtra") %>% 
  # latex_options = "HOLD_position") %>% 
-  kable(format = "latex") %>% 
+ # kable(format = "latex") %>% 
   add_header_above(c(" ", "Mindset" = 4, "Personality" = 2)) %>% 
-   add_footnote(
-    c("Pty6 = Big 6 personality items; Pty7 = Big 6 personality items + Disintegration"),
-    notation = "none"
-  ) %>%
   column_spec(6, extra_css = "position: relative;") %>%
   column_spec(7, extra_css = "position: relative;") 
+
 ```
 
 ```{r save-CNItable, echo = F, eval = F}
@@ -912,9 +775,15 @@ load(here("objects/Study1/CNImods_table1.Rdata"))
 ```
 
 ```{r tbl-cni-mods, results='asis', echo=F, eval=T}
-#| tbl-cap: "Mindset and Perosnality Cultural Normativity Index (CNI) Models"
-CNImods_table1 
+#|tbl-cap: "Mindset and Personality Cultural Normativity Index (CNI) Models"
+CNImods_table1
 ```
+
+
+```{r echo=FALSE, eval=FALSE}
+#knitr::opts_chunk$set(eval = FALSE, echo = FALSE)
+```
+
 
 ```{r DONT-RUN-cni.ctry-trends, eval=F, echo=T}
 #CNI country estimates from `slopes` (also can get CI's here) and `coef` (no CI's) are very close, both provide total effects (fixed+random)
@@ -1222,6 +1091,9 @@ save(cni.ContMod_tables,
 #takes a while to load
 load(here("objects/Study1/cni.ContMod_tables1.Rdata"))
 # [~33mins to load] 4:26pm start - end 4:58pm end
+
+cni.ContMod_tables$mindsetCNI.pty7 %>% 
+  View()
 ```
 
 ```{r}
@@ -1272,7 +1144,7 @@ cni.ContMod_tbl_details <-  cni.ContMod_tblNames %>%
   select(table_name, title, caption, variable_type)
 ```
 
-```{r cni.ContMod-tbls, echo = F, eval=T, results='asis'}
+```{r cni.ContMod-tbls, echo = F, results='asis'}
 #retain models that have mindset moderators
 cni.ContMod_tbl_details %>%
   pwalk(function(table_name, caption, ...) {
@@ -1417,7 +1289,7 @@ cni.ContMod_tbl_details %>%
   })
 ```
 
-```{r echo = F, eval=T}
+```{r echo = F}
 #| fig-height: 12
 #| fig-width: 10
 #| out-width: "100%"
@@ -1439,7 +1311,7 @@ cni.ContMod_tbl_details %>%
   })
 ```
 
-# RQ3.1: CNI\~well-being
+# RQ3.1: CNI~well-being
 
 ```{r DONT-RUN-swb-effects, echo = T, eval = F}
 cni.swbMod_tblNames <- tibble(table_name = c("mindsetCNI.swb", "ismCNI.swb", "globeCNI.swb", "fantcCNI.swb", "pty6CNI.swb", "pty7CNI.swb")) %>%
@@ -1471,6 +1343,8 @@ save(cni.swbMod_tables,
 ```{r load-cni.swbMod-effects, echo = F}
 #takes a while to load
 load(here("objects/Study1/cni.swbMod_tables.Rdata"))
+
+
 ```
 
 ```{r table-cni.swb_effects}
@@ -1502,8 +1376,8 @@ cni.swbMod_tables %>%
 ```
 
 ```{r fun.-plot-cni.swb_effects}
-cni.swb_effects_plot <- \(data, title){
-#swb_try_data %>% 
+cni.swb_effects_plot <- \(data){
+
 data %>% 
 #only linear effects
   filter(term == "z_ctry_response:modtr_score") %>%
@@ -1522,7 +1396,7 @@ data %>%
        p.value < .05 & estimate > 0 ~ "Pos",
        p.value < .05 & estimate < 0 ~ "Neg",
        TRUE ~ "NOT")) %>%
-  ggplot(aes(x = cni_type, y = estimate, fill = color, alpha = level)) +
+  ggplot(aes(x = color, y = estimate, fill = color, alpha = level)) +
   geom_col(position = position_dodge(width = 0.8)) +
   geom_errorbar(aes(ymin = conf.low, ymax = conf.high), position = position_dodge(width = 0.8),
  width = 0.25) +
@@ -1538,14 +1412,14 @@ scale_fill_manual(values = c(
 )) +
   scale_alpha_manual(values = c("Individual" = 1, "Community" = 0.4)) +
   labs(x = "CNI type",
-       title = title,
        fill = "CNI type", alpha = "Level") +
   theme_bw() +
   theme(legend.position = "bottom",
         axis.title.x = element_blank(), 
+        title = element_blank(),
         text = element_text(family = "serif", size = 11)) +
-  coord_flip()
-
+  coord_flip()+
+  guides(fill = "none")
 }
 ```
 
@@ -1553,18 +1427,168 @@ scale_fill_manual(values = c(
 #| fig-height: 6
 #| fig-width: 10
 #| out-width: "100%"
-cni.swbMod_tables %>% 
+#| fig-cap: "CNI predicted by Subjective Well-being"
+ cni.swbMod_tables %>% 
   imap(~mutate(.x, cni_type = .y, .before = level)) %>%
   list_rbind() %>% 
   arrange(desc(level)) %>% 
-  mutate(cni_type = str_remove(cni_type, "\\..*$"), .before = level) %>% 
-  cni.swb_effects_plot(., "CNI ~ swb")+
-  guides(fill = "none")
+  mutate(cni_type = str_remove(cni_type, "\\..*$"), .before = level) %>%
+ cni.swb_effects_plot(.)
 ```
 
-# RQ3.2: Well-being \~ CNI
+# RQ3.2: Well-being ~ CNI
+The relative importance of different CNIs can be evaluated by their predictive power for well-being outcomes. A key research question is to what degree CNIs serve as predictors of various subjective well-being (SWB) measures.
+In order to use SWB as an outcome variable we need to establish the measurement invariance of the life satisfaction scale used in the study. This will allow to make appropriate attributions about the causal relationships wherein the observed differences are due to true variation in the constructs rather than measurement artifacts.
 
-To what extent can CNI predict well-being
+## Measurement Invariance Analysis - SWB
+
+```{r MeasurementInvariance-processing}
+swb_MI.data <- data1 %>% 
+  #swb items have been rescaled to a range of 1 to 5
+  dplyr::select(starts_with("swb"), country)
+
+swbModel = '
+f1 =~ swb1 + swb2 + swb3 + swb4 + swb5
+'
+#-----Configural invariance-----#
+swbModel.config <- measEq.syntax(
+  configural.model = swbModel, 
+  data = swb_MI.data, 
+  group = "country") # column name of group variable
+
+# fit the new model synatx to the data, 
+fit.config <- cfa(as.character(swbModel.config), 
+                  data = swb_MI.data, 
+                  group = "country")
+
+summary_config <- summary(fit.config, fit.measures = T)
+
+
+#-----Metric invariance-----#
+swbModel.metric <- measEq.syntax(
+  configural.model = swbModel, 
+  data = swb_MI.data, 
+  group = "country",
+  group.equal = c("loadings")) # column name of group variable
+
+
+fit.metric <- cfa(as.character(swbModel.metric), 
+                  data = swb_MI.data, 
+                  group = "country")
+
+summary_metric <- summary(fit.metric, fit.measures = T)
+
+#-----Scalar invariance-----#
+swbModel.scalar <- measEq.syntax(
+  configural.model = swbModel, 
+  data = swb_MI.data, 
+  group = "country",
+  group.equal = c("loadings", "intercepts")) # column name of group variable
+
+fit.scalar <- cfa(as.character(swbModel.scalar), 
+                  data = swb_MI.data, 
+                  group = "country")
+
+summary_scalar <- summary(fit.scalar, fit.measures = T)
+
+#-----Strict invariance-----#
+swbModel.strict <- measEq.syntax(
+  configural.model = swbModel, 
+  data = swb_MI.data, 
+  group = "country",
+  group.equal = c("loadings", "intercepts", "residuals")) # column name of group variable
+
+fit.strict <- cfa(as.character(swbModel.strict), 
+                  data = swb_MI.data, 
+                  group = "country")
+
+
+summary_strict <- summary(fit.strict, fit.measures = T)
+
+
+#-----all fit stats-----#
+fit_tbl <-  \(summary){
+fit_stats <- c("chisq", "pvalue", "df",  "rmsea",  "rmsea.ci.lower", "rmsea.ci.upper", "srmr", "tli", "cfi")
+
+get_all_fits <- \(summary, stat){
+ fit_index <- summary$fit %>% 
+   pluck(stat)
+ formatted_index <- format(round(fit_index, 2), nsmall = 2)
+    return(as.numeric(formatted_index))
+}
+
+df <- map2_df(.x = list(summary), .y = fit_stats, ~{
+  tibble(fit_stats = .y, values = get_all_fits(.x, .y))
+})
+
+# Transform the data
+ df <- df %>% 
+    pivot_wider(names_from = "fit_stats", values_from = values) %>% 
+    mutate(
+      chisq = ifelse(pvalue < 0.05, glue("{chisq}**({df})"), glue("{chisq} ({df})")),
+      RMSEA = glue("{rmsea} ({rmsea.ci.lower}, {rmsea.ci.upper})")
+    ) %>% 
+  dplyr::select(-pvalue, -df, -rmsea, - rmsea.ci.upper, -rmsea.ci.lower) %>% 
+  rename("SRMR" = srmr,
+         "TLI" = "tli",
+         "CFI" = "cfi") %>% 
+  dplyr::select(chisq, RMSEA, everything())
+
+return(df)
+
+}
+
+# convert any input into a character string
+convert_to_char <- \(...) {
+  expr <- enquos(...)
+  char_vector <- map_chr(expr, quo_name)
+  return(char_vector)
+}
+
+#compute all the fit indices
+MI_table <- map_df(list(summary_config, summary_metric, summary_scalar, summary_strict), .f = fit_tbl) %>% 
+ #add invariance type col
+  mutate(invariance_type = convert_to_char(Configural, Metric, Scalar, Strict),  .before = chisq) %>% 
+ #add delta cols
+ mutate(
+    temp_RMSEA = as.numeric(str_extract(RMSEA, "\\d+\\.\\d+")),
+    delta_CFI = c(NA, -diff(CFI)),
+    delta_RMSEA = c(NA, diff(temp_RMSEA)),
+    delta_SRMR = c(NA, diff(SRMR))
+  ) %>%
+  select(-temp_RMSEA)  
+
+```
+
+```{r MeasurementInvariance_Table}
+#| label: tbl-MeasureMentInvariance
+#| tbl-cap: "Measurement Invariance metrics for Subjective Well-being"
+
+options(knitr.kable.NA = '')
+
+MI_table %>% 
+  kable(format = "latex", 
+        booktabs = TRUE, 
+        escape = FALSE, 
+        col.names = c("Invariance type", "Chi square",
+                      colnames(MI_table)[3:6], 
+                      "Δ CFI", "Δ RMSEA", "Δ SRMR")) %>%
+  kable_styling(latex_options = c("hold_position"))
+```
+
+Measurement invariance was assessed (@tbl-MeasureMentInvariance) for testing cross-cultural comparability of the 5-item Life Satisfaction scale measuring subjective well-being, across eight nations in Study 1. A series of increasingly constrained multi-group confirmatory factor analysis models were employed to evaluate configural, metric, scalar, and strict invariance.
+
+- The `configural invariance` model, which tests for similarity in factor structure (pattern of zero and non-zero loadings) across groups showed acceptable fit (CFI = 0.94, TLI = 0.89, RMSEA = 0.13 \[90% CI: 0.11, 0.14\], SRMR = 0.04). While the CFI indicates acceptable fit (close to cutoff of ≥ 0.95), the TLI (based on typical cutoff for good fit: ≥ 0.95) and RMSEA (baed on typical cutoffs: < 0.05 for good fit, < 0.08 for reasonable fit) suggest some misfit.
+
+- The `metric invariance` model, which constrains factor loadings to be equal across groups, demonstrated a slight decrease in fit (CFI = 0.92, TLI = 0.91, RMSEA = 0.12 \[90% CI: 0.11, 0.13\], SRMR = 0.0753). The change in CFI (ΔCFI = 0.02, exceeds the recommended threshold of ≤ 0.01, but within the more lenient threshold of ≤ 0.02) and RMSEA (ΔRMSEA = -0.0100, within acceptable limits of  ≤ 0.015), indicating partial support for metric invariance. 
+
+- The `scalar invariance` model, which additionally constrains item intercepts to be equal across groups, showed a substantial decrease in fit (CFI = 0.78, TLI = 0.82, RMSEA = 0.17 \[90% CI: 0.16, 0.18\], SRMR = 0.13). The changes in fit indices (ΔCFI = 0.14, ΔRMSEA = 0.05, ΔSRMR = 0.05) far exceeded recommended thresholds, indicating that scalar invariance does not hold.
+
+- The strict invariance model, which also constrains residual variances to be equal across groups, exhibited a further decline in fit (CFI = 0.54, TLI = 0.72, RMSEA = 0.21 \[90% CI: 0.2, 0.21\], SRMR = 0.16), indicating that strict invariance is not tenable. 
+
+In summary, the SWB scale demonstrates partial support for configural and metric invariance across the eight nations, and there is evidence of non-invariance at scalar, and strict levels. These results suggest that while the basic structure of the scale could be similar across cultures, there may be differences in the strength of item-factor relationships, item intercepts, and item residuals across nations. Given the established complexity of SWB across cultures, we suggest that the readers approach the use of this construct with caution. 
+
+## Analysis &#8594; (SWB $\leftarrow$ CNI)
 
 ```{r swb.cni-lmer, eval=TRUE}
 compute_swb.cni_mods_lmer <- \(cni_mod){
@@ -1621,7 +1645,7 @@ compute_heterosk_swb.cni <- \(cni_mod){
 }
 
 all_swb.cni_mods_heterosk <- map(
-  lst(mindsetgCNI_mod, ismCNI_mod, globeCNI_mod,fantcCNI_mod,
+  lst(mindsetCNI_mod, ismCNI_mod, globeCNI_mod,fantcCNI_mod,
   pty6CNI_mod, pty7CNI_mod), 
   
   compute_heterosk_swb.cni) 
@@ -1635,9 +1659,10 @@ save(all_swb.cni_mods_heterosk,
 ```{r load-swb.cni_mods_heterosk, echo = F}
 #takes a while to load
 load(here("objects/Study1/swb.cni_mods_heterosk.Rdata"))
+
 ```
 
-```{r}
+```{r fun.-tbl-swb.cni_heteroskt}
 make_swb.cni_heterosk_tbl <- \(mod_name) {
   list(
     model = mod_name,
@@ -1653,7 +1678,8 @@ swb.cni_heterosk_tbl <- map_dfr(convert_to_char(mindsetCNI_mod, ismCNI_mod, glob
   pty6CNI_mod, pty7CNI_mod), make_swb.cni_heterosk_tbl)
 ```
 
-```{r}
+```{r tbl-swb.cni_heteroskt}
+
 swb.cni_heterosk_tbl %>% 
   mutate(model=str_extract(model, "^[^CNI]+")) %>% 
   kable(booktabs = T,
@@ -1668,9 +1694,48 @@ swb.cni_heterosk_tbl %>%
     fixed_small_size = TRUE,
            footnote_as_chunk = FALSE,
            threeparttable = TRUE)
+
 ```
 
+
 ```{r}
+hetero_plot = function(model, title){ 
+  plot = model %>%
+augment %>%
+sample_n(1000) %>%
+ggplot(aes(x = CNI, y = .resid)) + 
+    geom_jitter(alpha = .3,
+height = .1, width = 0) + labs(x = "Est CNI",
+       y = "Residual", title = title) + theme_bw()
+return(plot) }
+
+names(all_swb.cni_mods_heterosk)
+
+hetero_wb2 = hetero_plot(all_swb.cni_mods_heterosk$mindsetCNI_mod$linear_lm, "Well-being\n(quadratic)")
+```
+
+
+```{r plot-heteroskedasticity, echo=F}
+#| fig-height: 4
+#| fig-width: 10
+#| out-width: "100%"
+#| cap-location: bottom
+#| fig-cap: 
+#|   !expr plot_swb_details %>%
+#|     pull(caption)
+
+#retain models that have mindset moderators
+plot_swb_details %>%
+  pull(cni_mod) %>% 
+  walk(~{
+    cat("\n\n")  
+    print(plot_swb.cni_patch(.x))
+    cat("\n\n") 
+  })
+```
+
+
+```{r fun.-plot_swb.cni}
 plot_swb.cni <- \(model) {
   library(sjPlot)
   
@@ -1723,23 +1788,23 @@ plot_swb.cni_patch <- \(model){
 }
 ```
 
-```{r}
-cni_mod_obj.names <- tibble(cni_type = c("mindset", "ism", "globe", "fantc", "pty6", "pty7")) %>% 
+```{r plot_swb-details}
+plot_swb_details <- tibble(cni_type = c("mindset", "ism", "globe", "fantc", "pty6", "pty7")) %>% 
   mutate(cni_mod = paste0(cni_type, "CNI_mod"),
          caption = paste0("Association between ", cni_type, " CNI and Subjective Well-being" ))
 ```
 
-```{r}
+```{r plot_swb-walk, echo=F}
 #| fig-height: 4
 #| fig-width: 10
 #| out-width: "100%"
 #| cap-location: bottom
 #| fig-cap: 
-#|   !expr cni_mod_obj.names %>%
+#|   !expr plot_swb_details %>%
 #|     pull(caption)
 
 #retain models that have mindset moderators
-cni_mod_obj.names %>%
+plot_swb_details %>%
   pull(cni_mod) %>% 
   walk(~{
     cat("\n\n")  
@@ -1747,3 +1812,4 @@ cni_mod_obj.names %>%
     cat("\n\n") 
   })
 ```
+
