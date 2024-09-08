@@ -340,7 +340,7 @@ data1 %>%
 @tbl-descriptive indicates the sample details for all eight countries in this dataset.
 
 
-# Analyses
+# Analysis
 ## RQ1: Computing CNI
 
 Using the approach by Weston et, al (2024), CNI is estimated using a random slope multilevel model (fixed intercepts; as the self and country responses have been ipsatized or standardized, the mean or the b0 will be zero) wherein the items are nested within persons. The ipsatization allows for the resulting slope estimates to be interpreted as correlation estimates.
@@ -353,10 +353,9 @@ For study 1, six CNI models are computed:
 1. Mindset CNI: consisting of all mindset items 
 2. Isms CNI
 3. Globe CNI: Original Globe items by House et al.
-6. Fanaticism CNI
-7. Social Axioms CNI
-8. Personality 6 CNI: consisting of Big 6 items
-8. Personality 7 CNI: Big 6 items + Disintegration items
+4. Fanaticism CNI
+5. Personality 6 CNI: consisting of Big 6 items
+6. Personality 7 CNI: Big 6 items + Disintegration items
 :::
 
 \*\*NOTE - write about ipsatization and controlling for overall mean when computing profile similarity analysis
@@ -452,7 +451,7 @@ return(lst(self.ctry_profiles, overallM_profiles)) #set_names() to the input obj
 } 
 ```
 
-```{r}
+```{r CNi-profiles}
 #get all item names for CNI types
 mindsetCNI_items <- get_item_names("Mindset", all_vars_d)
 pty6CNI_items <- get_item_names("pty6", all_vars_d)
@@ -513,7 +512,7 @@ load(here("objects/Study1/all_CNI.mods_study1.Rdata"))
 
 ## Measuring Model Complexity
 
-The Eight models vary in the number of items and domains of psychological measures.
+The six CNI models vary in the number of items and domains of psychological measures.
 1. The Parallel Analysis computed here, identify the optimum number of dimensions that the data for every CNI type can be reduced to. The optimum number of dimensions are retained based on the comparison of eigenvalues of the actual data and those of randomly generated data sets. Dimensions are retained when their eigenvalues exceed those of the random data, ensuring that only factors accounting for more variance than would be expected by chance are retained. 
 2. Unrotated Principal Components that explain at least 50% of variance are identified.
 These metrics provide quantitative measures of the underlying dimensionality and structure of each CNI.
@@ -582,9 +581,9 @@ save(heterogeneity_stats,
 load(here("objects/Study1/heterogeneity_stats.Rdata"))
 ```
 
-```{r tbl-heterogeneity, results='asis', message=F}
+```{r tbl-model-complexity, results='asis', message=F}
 #| tbl-cap: "Model complexity"
-#| label: tbl-heterogeneity
+#| label: tbl-model-complexity
 
 heterogeneity_stats %>% 
   kable(booktabs = T, 
@@ -597,13 +596,13 @@ heterogeneity_stats %>%
    add_footnote("Note: Personality6 = Big 6 items; Personality7 = Big 6 items + Disintegration.", notation = "none")
 ```
 
-```{r plot-heterogeneity, results='asis'}
+```{r plot-model-complexity, results='asis'}
 #| fig-height: 6
 #| fig-width: 10
 #| out-width: "100%"
 #| fig-cap-location: bottom
 #| fig-cap: "Model Complexity Measures Across CNI"
-#| label: plot-heterogeneity
+#| label: fig-plot-model-complexity
 
 heterogeneity_stats %>%
   pivot_longer(cols = c(pa, pca_50), names_to = "metric", values_to = "value") %>%
@@ -623,6 +622,11 @@ ggplot(., aes(x = x_label, y = value, color = metric, group = metric)) +
         legend.position = "bottom",
         text = element_text(family="serif"))
 ```
+
+An increase in CNI complexity was observed with an increase in the number of items (@fig-plot-model-complexity). 
+
+
+## CNI plots
 
 ```{r fun.-plot_CNI}
 #Functions
@@ -647,7 +651,6 @@ plot_CNI <- function(model_obj) {
     filter(str_detect(mod_name, title)) %>% 
     pull(color)
   
-  model_obj= ismCNI_mod
   # Calculate slopes
   mod_slopes <- slopes(model_obj, variables = "z_ctry_response", by = "pID")
   
@@ -672,7 +675,7 @@ y = conf.low,yend = conf.high),
     theme_bw() +
     theme(text = element_text(family = "serif"))
   
-  return(lst(coefficient_plot,hist_plot ))
+  return(lst(mod_slopes, coefficient_plot,hist_plot ))
 }
 ```
 
@@ -735,6 +738,26 @@ cni_plot_details %>%
   })
 ```
 
+
+```{r range-CNI, eval=F, echo=F}
+#Range of CNI values for each model
+cni_plot_details %>% 
+  pull(cni_mod) %>% 
+  map_dfr(~{
+    # Get the object from the global environment
+    plot_obj <- get(.x, envir = .GlobalEnv)
+
+    plot_obj$mod_slopes %>%
+      tibble() %>% 
+      reframe(range = range(estimate)) %>%
+      mutate(model = .x,
+             range_value = c("low", "high"))
+  }) %>%
+  # Reorder columns to have 'model' first
+  select(model, everything()) %>% 
+  pivot_wider(names_from = "range_value", values_from = "range") 
+```
+
 ```{r DONT-RUN-create-tbl-cni-mods, echo = T, eval = F}
 options(modelsummary_get = "easystats")
 CNImods_table1 <- modelsummary(
@@ -776,7 +799,9 @@ load(here("objects/Study1/CNImods_table1.Rdata"))
 
 ```{r tbl-cni-mods, results='asis', echo=F, eval=T}
 #|tbl-cap: "Mindset and Personality Cultural Normativity Index (CNI) Models"
-CNImods_table1
+
+
+export(CNImods_table1, "CNImods_table1.xlsx")
 ```
 
 
@@ -1375,7 +1400,7 @@ cni.swbMod_tables %>%
      group_rows("Country level", 7, 12) 
 ```
 
-```{r fun.-plot-cni.swb_effects}
+```{r fun.-plot-cni.swb_effects, echo=F}
 cni.swb_effects_plot <- \(data){
 
 data %>% 
@@ -1417,24 +1442,28 @@ scale_fill_manual(values = c(
   theme(legend.position = "bottom",
         axis.title.x = element_blank(), 
         title = element_blank(),
-        text = element_text(family = "serif", size = 11)) +
+        text = element_text(family = "serif", size = 12)) +
   coord_flip()+
   guides(fill = "none")
 }
 ```
 
-```{r plot-cni.swb_effects}
+```{r plot-cni.swb_effects, echo=F}
+#| label: fig-plot-cni.swb_effects
 #| fig-height: 6
 #| fig-width: 10
 #| out-width: "100%"
 #| fig-cap: "CNI predicted by Subjective Well-being"
  cni.swbMod_tables %>% 
+  #add the tbl_name (model name) = cni_type as a col 
   imap(~mutate(.x, cni_type = .y, .before = level)) %>%
   list_rbind() %>% 
   arrange(desc(level)) %>% 
   mutate(cni_type = str_remove(cni_type, "\\..*$"), .before = level) %>%
  cni.swb_effects_plot(.)
 ```
+
+@fig-plot-cni.swb_effects indicates that SWB is a stronger predictor of Personality CNI than Mindset-CNI. 
 
 # RQ3.2: Well-being ~ CNI
 The relative importance of different CNIs can be evaluated by their predictive power for well-being outcomes. A key research question is to what degree CNIs serve as predictors of various subjective well-being (SWB) measures.
@@ -1588,7 +1617,9 @@ Measurement invariance was assessed (@tbl-MeasureMentInvariance) for testing cro
 
 In summary, the SWB scale demonstrates partial support for configural and metric invariance across the eight nations, and there is evidence of non-invariance at scalar, and strict levels. These results suggest that while the basic structure of the scale could be similar across cultures, there may be differences in the strength of item-factor relationships, item intercepts, and item residuals across nations. Given the established complexity of SWB across cultures, we suggest that the readers approach the use of this construct with caution. 
 
-## Analysis &#8594; (SWB $\leftarrow$ CNI)
+## To what extent can CNI predict Subjective well-being?
+
+To assess the degree to which CNI affects mental health outcomes, both linear and curvilinear relationships are examined to elucidate the overall association as well as the relationship across specific levels of each variable.
 
 ```{r swb.cni-lmer, eval=TRUE}
 compute_swb.cni_mods_lmer <- \(cni_mod){
@@ -1618,6 +1649,16 @@ all_swb.cni_mods <- map(
   pty6CNI_mod, pty7CNI_mod), 
   compute_swb.cni_mods_lmer) 
 ```
+
+Test for heteroskedasticity:
+To test if the levels of SWB vary unequally across the range of CNI (homoscedasticity), White's test for heteroskedasticity is computed.
+
+Advantages of bootstrapped White's test:
+a) Robust to non-normality: Unlike some other tests, it does not assume normality of errors.
+b) Flexible: It can detect various forms of heteroscedasticity.
+c) Bootstrapping: This adds robustness to the test, especially for smaller sample sizes or when the data doesn not meet parametric assumptions.
+
+White's test is a more general form of the Breusch-Pagan test. While Breusch-Pagan assumes heteroscedasticity is a linear function of the independent variables, White's test allows for non-linear forms.
 
 ```{r DONT-RUN-swb.cni_mods_heterosk, echo = T, eval = F}
  library(whitestrap)
@@ -1679,6 +1720,7 @@ swb.cni_heterosk_tbl <- map_dfr(convert_to_char(mindsetCNI_mod, ismCNI_mod, glob
 ```
 
 ```{r tbl-swb.cni_heteroskt}
+#|label: tbl-swb.cni_heteroskt
 
 swb.cni_heterosk_tbl %>% 
   mutate(model=str_extract(model, "^[^CNI]+")) %>% 
@@ -1697,21 +1739,54 @@ swb.cni_heterosk_tbl %>%
 
 ```
 
+```{r echo=FALSE, eval=FALSE}
+#when >.05 assumption of homoscedasticity(constant variance of residuals) is met. 
+swb.cni_heterosk_tbl %>%
+  mutate(across(starts_with("p_value"), 
+                ~ifelse(. > 0.05, ">.05", as.character(.))))
+```
 
-```{r}
-hetero_plot = function(model, title){ 
-  plot = model %>%
-augment %>%
+@tbl-swb.cni_heteroskt reveals that the assumption of homoscedasticity is satisfied for the majority of the models under consideration. However, the Mindset and Isms CNI models exhibit evidence of heteroscedasticity, as indicated by their respective p-values (p < .05). Consequently, the findings pertaining to these two models should be interpreted with caution, as the violation of the homoscedasticity assumption may impact the reliability of the parameter estimates and statistical inferences drawn from these models. 
+
+
+```{r fun.-hetero_plot}
+hetero_plot <- \(model){ 
+  
+    plot_it <- \(data){
+      data %>% 
+  augment() %>%
 sample_n(1000) %>%
 ggplot(aes(x = CNI, y = .resid)) + 
     geom_jitter(alpha = .3,
 height = .1, width = 0) + labs(x = "Est CNI",
-       y = "Residual", title = title) + theme_bw()
-return(plot) }
+       y = "Residual") +
+     # xlim(-0.8, 1) +
+     # ylim(-8, 10) + 
+        theme_bw()}
+  
+    linear_plot <- all_swb.cni_mods_heterosk %>% 
+  pluck(model, "linear_lm") %>%
+  plot_it()
+    
+    quadratic_plot <- all_swb.cni_mods_heterosk %>% 
+  pluck(model, "quadratic_lm") %>%
+  plot_it()
+    
+   patch_plot <- linear_plot + quadratic_plot +
+    plot_layout(axis_titles = "collect")+
+   plot_annotation(tag_levels = list(c("Linear", "Quadratic"))) &  
+  theme(
+    plot.tag.position = c("top"),
+    plot.caption = element_markdown(size = 12), 
+    text = element_text("serif")
+  )
+    
+return(patch_plot) }
 
+hetero_plot("mindsetCNI_mod")
 names(all_swb.cni_mods_heterosk)
 
-hetero_wb2 = hetero_plot(all_swb.cni_mods_heterosk$mindsetCNI_mod$linear_lm, "Well-being\n(quadratic)")
+hetero_swb_linear = 
 ```
 
 
@@ -1791,7 +1866,7 @@ plot_swb.cni_patch <- \(model){
 ```{r plot_swb-details}
 plot_swb_details <- tibble(cni_type = c("mindset", "ism", "globe", "fantc", "pty6", "pty7")) %>% 
   mutate(cni_mod = paste0(cni_type, "CNI_mod"),
-         caption = paste0("Association between ", cni_type, " CNI and Subjective Well-being" ))
+         caption = paste0("Association between ", cni_type, " CNI and Subjective Well-being at Individual level" ))
 ```
 
 ```{r plot_swb-walk, echo=F}
@@ -1812,4 +1887,6 @@ plot_swb_details %>%
     cat("\n\n") 
   })
 ```
+
+
 
