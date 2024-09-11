@@ -157,9 +157,8 @@ compute_trait_score <- function(data, pos_items, rev_items = NULL) {
 
 data1 <- all_data1 %>% 
   select(
-    list_c(map(c("Isms","Globe", "Values", "Fanaticism", 
-                 "Social_Axioms", "Failed_state_perception",
-                 "Personality6","Personality7", "SWB"),
+    list_c(map(c("Isms","Globe", "Values", "Fanaticism", "Social_Axioms", "Failed_state_perception","Personality6",
+                 "Personality7", "SWB"),
                item_names)), NATION9, age, genderml) %>% # nrow() = 2839
   # Retain rows where data for all five SWB items is present
   filter(if_all(item_names("SWB"), ~!is.na(.)))%>% # nrow() = 2815; 24 rows dropped
@@ -183,7 +182,7 @@ data1 <- all_data1 %>%
                 ~scales::rescale(., to = c(1, 5)))) %>%
         select(-c(NATION9, genderml)) %>% 
   
-      #---MODERATORs for Mindset -CNI---#
+      #---PERSONALITY MODERATORs---#
        #scP = scale Personality scores
   mutate(
     # Moderators - based on raw data for individuals
@@ -208,7 +207,7 @@ data1 <- all_data1 %>%
          scP_Dis.indv =  compute_trait_score(., paste0("d_", 1:10))#Disintegration
   ) %>%
 
-   #---MODERATORs for Personality-CNI---#
+   #---MINDSET MODERATOR---#
       #scM = scale Mindset scores
   mutate(
             #compute_trait_score(data, pos_items, rev_items) 
@@ -508,9 +507,7 @@ load(here("objects/Study1/all_CNI.mods_study1.Rdata"))
 ```
 
 
-
-
-## Measuring Model Complexity
+### Measuring Model Complexity
 
 The six CNI models vary in the number of items and domains of psychological measures.
 1. The Parallel Analysis computed here, identify the optimum number of dimensions that the data for every CNI type can be reduced to. The optimum number of dimensions are retained based on the comparison of eigenvalues of the actual data and those of randomly generated data sets. Dimensions are retained when their eigenvalues exceed those of the random data, ensuring that only factors accounting for more variance than would be expected by chance are retained. 
@@ -601,7 +598,7 @@ heterogeneity_stats %>%
 #| fig-width: 10
 #| out-width: "100%"
 #| fig-cap-location: bottom
-#| fig-cap: "Model Complexity Measures Across CNI"
+#| fig-cap: "Model Complexity Measures Across CNI Models"
 #| label: fig-plot-model-complexity
 
 heterogeneity_stats %>%
@@ -620,13 +617,13 @@ ggplot(., aes(x = x_label, y = value, color = metric, group = metric)) +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
         legend.position = "bottom",
-        text = element_text(family="serif"))
+        text = element_text(family="serif", size = 13))
 ```
 
-An increase in CNI complexity was observed with an increase in the number of items (@fig-plot-model-complexity). 
+An increase in CNI complexity is observed with an increase in the number of items (@fig-plot-model-complexity). 
 
 
-## CNI plots
+### CNI plots
 
 ```{r fun.-plot_CNI}
 #Functions
@@ -738,9 +735,7 @@ cni_plot_details %>%
   })
 ```
 
-
 ```{r range-CNI, eval=F, echo=F}
-#Range of CNI values for each model
 cni_plot_details %>% 
   pull(cni_mod) %>% 
   map_dfr(~{
@@ -749,14 +744,28 @@ cni_plot_details %>%
 
     plot_obj$mod_slopes %>%
       tibble() %>% 
-      reframe(range = range(estimate)) %>%
-      mutate(model = .x,
-             range_value = c("low", "high"))
+      summarize(
+        low = min(estimate),
+        high = max(estimate),
+        range = high - low
+      ) %>%
+      mutate(model = .x)
   }) %>%
-  # Reorder columns to have 'model' first
-  select(model, everything()) %>% 
-  pivot_wider(names_from = "range_value", values_from = "range") 
+  # Reorder columns to have 'model' first and include the calculated range
+  select(model, low, high, range) %>% 
+  # Rename the models as requested
+  mutate(model = case_when(
+    model == "mindsetCNI_plot" ~ "Mindset CNI",
+    model == "ismCNI_plot" ~ "Isms CNI",
+    model == "globeCNI_plot" ~ "Globe CNI",
+    model == "fantcCNI_plot" ~ "Fanaticism CNI",
+    model == "pty6CNI_plot" ~ "Personality 6 CNI",
+    model == "pty7CNI_plot" ~ "Personality 7 CNI",
+    TRUE ~ model
+  )) %>% 
+  arrange(desc(range))
 ```
+
 
 ```{r DONT-RUN-create-tbl-cni-mods, echo = T, eval = F}
 options(modelsummary_get = "easystats")
@@ -779,7 +788,8 @@ CNImods_table1 <- modelsummary(
                "SD (Observations)" = ""),
              gof_map = c("nobs"), 
              fmt = "%.2f",
-             output = "kableExtra") %>% 
+             output = "kableExtra",
+  escape = TRUE) %>% 
  # latex_options = "HOLD_position") %>% 
  # kable(format = "latex") %>% 
   add_header_above(c(" ", "Mindset" = 4, "Personality" = 2)) %>% 
@@ -800,15 +810,11 @@ load(here("objects/Study1/CNImods_table1.Rdata"))
 ```{r tbl-cni-mods, results='asis', echo=F, eval=T}
 #|tbl-cap: "Mindset and Personality Cultural Normativity Index (CNI) Models"
 
-
-export(CNImods_table1, "CNImods_table1.xlsx")
+CNImods_table1
 ```
 
-
-```{r echo=FALSE, eval=FALSE}
-#knitr::opts_chunk$set(eval = FALSE, echo = FALSE)
-```
-
+### CNI Country trends
+Across countries the CNI types could potentially indicate varying trends. This was assessed by studying the country level CNI's (random slopes, "z_ctry_response"). 
 
 ```{r DONT-RUN-cni.ctry-trends, eval=F, echo=T}
 #CNI country estimates from `slopes` (also can get CI's here) and `coef` (no CI's) are very close, both provide total effects (fixed+random)
@@ -818,6 +824,47 @@ all_mods_ctry.trends <- map_dfr(lst(
   mindsetCNI_mod, ismCNI_mod, globeCNI_mod,fantcCNI_mod,
   pty6CNI_mod, pty7CNI_mod), 
                  ~slopes(., variables = "z_ctry_response", by = "country"), .id = "model") 
+```
+
+
+```{r save-country-trends, echo = F, eval = F}
+save(all_mods_ctry.trends,
+     file = here("objects/Study1/CNI-ctry-trends1.Rdata"))
+```
+
+```{r load-country-trends, echo = F}
+load(here("objects/Study1/CNI-ctry-trends1.Rdata"))
+```
+
+
+```{r tbl-ctry.trends-allCNImods, results='asis', echo=F, eval=T}
+#|label: tbl-ctry.trends-allCNImods
+
+all_mods_ctry.trends %>% 
+  tibble() %>% 
+  select(model, country, estimate, conf.low, conf.high, p.value) %>%
+    mutate(
+    p.value = map_chr(p.value, papaja::printp),
+    across(where(is.numeric), ~ round(., 3)),
+  ci = paste0("[", conf.low, ", ", conf.high,"]"),
+    estimate = as.character(estimate) 
+  ) %>% 
+  select(country, estimate, ci, p.value) %>% 
+   kable(booktabs = T, 
+        escape = F,
+        format = "latex",
+        longtable = TRUE,
+        col.names = c("Country", "Estimate", "95\\% CI", "$\\textit{p}$"),
+        caption = "Country estimates across CNI types") %>% 
+  kable_styling(latex_options = c("repeat_header", "longtable")) %>% 
+  group_rows("Mindset CNI", 1, 8) %>% 
+  group_rows("Isms-Mindset CNI", 8+1, 8*2) %>%  
+  group_rows("Globe-Mindset CNI", 8*2+1, 8*3) %>% 
+  group_rows("Fanaticism-Mindset CNI", 8*3+1, 8*4) %>%
+  group_rows("Personality6 CNI", 8*4+1, 8*5) %>% 
+  group_rows("Personality7", 8*5+1, 8*6) %>% 
+  column_spec(1, width = "5cm")
+
 ```
 
 ```{r fun.-oneCoef-plot, echo = F, eval = F}
@@ -847,16 +894,7 @@ plotCNI_ctry_trends <- \(slope_data){
 #plotCNI_ctry_trends(mindsetCNI_mod_ctry.slopes)
 ```
 
-```{r save-country-trends, echo = F, eval = F}
-save(all_mods_ctry.trends,
-     file = here("objects/Study1/CNI-ctry-trends1.Rdata"))
-```
-
-```{r load-country-trends, echo = F}
-load(here("objects/Study1/CNI-ctry-trends1.Rdata"))
-```
-
-```{r ctry-trends-3models-plot}
+```{r ctry-trends-3models-plot, echo=F, eval=T}
 #| fig-height: 8
 #| fig-width: 10
 #| out-width: "100%"
@@ -866,6 +904,12 @@ load(here("objects/Study1/CNI-ctry-trends1.Rdata"))
 all_mods_ctry.trends %>% 
   mutate(model = str_extract(model, "^[^_]+")) %>% 
   filter(model %in% c("mindsetCNI", "pty6CNI", "pty7CNI")) %>% 
+  mutate(model = case_when(
+    model == "mindsetCNI" ~ "Mindset CNI",
+    model == "pty6CNI" ~ "Personality 6 CNI",
+    model == "pty7CNI" ~ "Personality 7 CNI",
+    TRUE ~ model
+  )) %>% 
   select(model, country, estimate, conf.low, conf.high) %>% 
   ggplot(aes(x = reorder(country, estimate), y = estimate, 
              color = model)) +
@@ -875,8 +919,8 @@ all_mods_ctry.trends %>%
   geom_point(position = position_dodge(width = 0.5), 
              size = 1.7)+ 
   scale_y_continuous(limits = c(0, 1)) +
-  scale_color_manual(values = c("mindsetCNI" = "#1e81b0", 
-     "pty6CNI" = "#ff7477", "pty7CNI" = "#ff70a6")) + 
+  scale_color_manual(values = c("Mindset CNI" = "#1e81b0", 
+     "Personality 6 CNI" = "#ff7477", "Personality 7 CNI" = "#ff70a6")) + 
   labs(x = NULL, 
        y = "CNI",
        color = "Model") +
@@ -884,10 +928,11 @@ all_mods_ctry.trends %>%
   theme_bw() +
   theme(plot.title.position = "plot",
         legend.position = "bottom",
-        text = element_text(family = "serif", size = 13.7))
+        text = element_text(family = "serif", size = 14.2))
 ```
 
-```{r ctry-trends-6models-plot}
+
+```{r ctry-trends-6models-plot, echo=F, eval=T}
 #| fig-height: 8
 #| fig-width: 10
 #| out-width: "100%"
@@ -897,21 +942,30 @@ all_mods_ctry.trends %>%
 all_mods_ctry.trends %>% 
   as_tibble() %>% 
   mutate(model = str_extract(model, "^[^_]+")) %>% 
+  mutate(model = case_when(
+    model == "mindsetCNI" ~ "Mindset CNI",
+    model == "pty6CNI" ~ "Personality 6 CNI",
+    model == "pty7CNI" ~ "Personality 7 CNI",
+    model == "ismCNI" ~ "Isms-Mindset CNI",
+    model == "fantcCNI" ~ "Fanaticism-Mindset CNI",
+    model == "globeCNI" ~ "Globe-Mindset CNI",
+    TRUE ~ model
+  )) %>% 
   select(model, country, estimate, conf.low, conf.high) %>% 
   ggplot(aes(x = reorder(country, estimate), y = estimate, color = model, linetype = model)) +
   geom_errorbar(aes(ymin = conf.low, ymax = conf.high),
                 position = position_dodge(width = 0.5), width = 0.4) +
   geom_point(position = position_dodge(width = 0.5), size = 1.7) + 
   scale_y_continuous(limits = c(0, 1)) +
-  scale_color_manual(values = c("mindsetCNI" = "#1e81b0", "ismCNI"  = "#70d6ff", "globeCNI"  = "#a7bed3", "fantcCNI"  = "#a0c4ff", "pty6CNI" = "#ff7477", "pty7CNI" = "#ff70a6")) +
-   scale_linetype_manual(values = c("globeCNI"  ="dashed", "ismCNI"  ="dashed", "fantcCNI"  ="dashed", "mindsetCNI" = "solid", "pty7CNI" = "solid","pty6CNI" = "solid")) +
+  scale_color_manual(values = c("Mindset CNI" = "#1e81b0", "Isms-Mindset CNI"  = "#70d6ff", "Globe-Mindset CNI"  = "#a7bed3", "Fanaticism-Mindset CNI"  = "#a0c4ff", "Personality 6 CNI" = "#ff7477", "Personality 7 CNI" = "#ff70a6")) +
+   scale_linetype_manual(values = c("Globe-Mindset CNI"  ="dashed", "Isms-Mindset CNI"  ="dashed", "Fanaticism-Mindset CNI"  ="dashed", "Mindset CNI" = "solid", "Personality 7 CNI" = "solid","Personality 6 CNI" = "solid")) +
   labs(x = NULL, y = "CNI", 
        color = "Model") +
   coord_flip() +
   theme_bw() +
   theme(plot.title.position = "plot",
         legend.position = "bottom",
-        text = element_text(family = "serif", size = 13.7))+
+        text = element_text(family = "serif", size = 14.2))+
   guides(linetype = "none")
 ```
 
@@ -1042,10 +1096,10 @@ specify_var_names <- \(data){
       str_detect(modtr, "globe_tr") ~ "Traditional family structure",
       str_detect(modtr, "globe_un") ~ "Uncertainty avoidance",   
       str_detect(modtr, "globe_ac") ~ "Achievement orientation",
-      str_detect(modtr, "globe_ag") ~ "Aggression", 
+      str_detect(modtr, "globe_ag") ~ "Assertiveness", 
       str_detect(modtr, "globe_hu") ~ "Humane",
       str_detect(modtr, "globe_ma") ~ "Masculinity",
-      str_detect(modtr, "globe_in") ~ "Individualism",
+      str_detect(modtr, "globe_in") ~ "Ingroup_Collectivism",
       str_detect(modtr, "globe_po") ~ "Power distance",
       str_detect(modtr, "globe_fu") ~ "Future orientation",
       str_detect(modtr, "fntc\\.") ~ "Fanaticism",
@@ -1110,23 +1164,115 @@ cni.ContMod_tables <- map2(
 ```{r save-cni.ContMod-effects, echo = F, eval = F}
 save(cni.ContMod_tables,
      file = here("objects/Study1/cni.ContMod_tables1.Rdata"))
+
+
+cni.ContMod_tables %>% 
+  pluck("pty7CNI.mindset") %>% 
+  specify_var_names() %>% 
+  pull(modtr)
 ```
 
 ```{r load-cni.ContMod-effects-tbl, echo = F}
 #takes a while to load
 load(here("objects/Study1/cni.ContMod_tables1.Rdata"))
 # [~33mins to load] 4:26pm start - end 4:58pm end
-
-cni.ContMod_tables$mindsetCNI.pty7 %>% 
-  View()
 ```
 
-```{r}
+## Descriptives - Effect size estimates 
+
+```{r overall-ContEst-trends, results='asis'}
+#| tbl-cap: "Descriptive Statistics for Effect size Estimates"
+library(e1071)
+
+list_rbind(cni.ContMod_tables, names_to = "model") %>% 
+    mutate(level = case_when(
+      level == "Community" ~ "Country",
+      TRUE ~ level
+    ),
+    term = case_when(
+      term == "z_ctry_response:modtr_score" ~ "Linear",
+      term == "z_ctry_response:I(modtr_score^2)" ~ "Quadratic",
+      TRUE ~ term
+    )) %>% 
+  group_by(term, level) %>%
+  summarise(
+    min = min(estimate),
+    max = max(estimate),
+    range = max - min,
+    kurtosis = e1071::kurtosis(estimate), 
+    skew = e1071::skewness(estimate), 
+    n = n(),
+    mean = mean(estimate),
+    sd = sd(estimate),
+    .groups = "drop"
+  ) %>%
+  mutate(across(where(is.numeric), ~round(., 2))) %>% 
+  select(-term) %>% 
+  kable(booktabs = T, 
+        escape = F,
+        format = "latex",
+        col.names = c(" ", "min", "max", "range", "kurtosis", "skew", "n", "mean", "sd")) %>%  
+   group_rows("Linear effects", 1, 2) %>% 
+  group_rows("Quadratic effects", 3, 4) 
+    
+```
+
+```{r overall-ContEst-trends-plot, eval = T, echo = F, results='asis'}
+#| fig-cap: "Distribution of Effects"
+#| fig-width: 7
+#| fig-height: 4
+
+plot_cont_effects <- function(plot_type) {
+   base_data <- list_rbind(cni.ContMod_tables, names_to = "model") %>%
+    mutate(level = case_when(
+      level == "Community" ~ "Country",
+      TRUE ~ level
+    ))
+  
+  plot_data <- switch(plot_type,
+    "overall" = base_data,
+    "linear" = base_data %>% filter(term == "z_ctry_response:modtr_score"),
+    "quadratic" = base_data %>% filter(term == "z_ctry_response:I(modtr_score^2)"),
+    stop("Invalid plot type. Use 'overall', 'linear', or 'quadratic'.")
+  )
+  
+  plot <- ggplot(plot_data, aes(x = estimate, y = ..density..)) +
+    geom_density(color = "grey40", fill = "grey80", alpha = 0.5) +
+    geom_density(aes(fill = level, color = level), alpha = 0.5) +
+    scale_fill_manual(values = c("Individual" = "cornflowerblue", "Country" = "pink")) +
+    scale_color_manual(values = c("Individual" = "cornflowerblue", "Country" = "pink")) +
+    scale_x_continuous(limits = c(-0.55, 0.45)) +
+    scale_y_continuous(limits = c(0, 280))+
+    theme_bw() +
+   labs(x = "Effect size Estimates", y = "Density", fill = "Level", color = "Level")
+  
+  return(plot)
+}
+
+
+plot_cont_effects("overall") + 
+plot_cont_effects("linear") +
+plot_cont_effects("quadratic") + 
+  plot_layout(
+    axis_titles = "collect",
+    guides = "collect"
+  )  +
+  plot_annotation(
+    tag_levels = list(c("Overall", "Linear", "Quadratic"))
+  ) &
+  theme(
+    plot.tag.position = c("top"),
+    text = element_text(family = "serif", size = 12),legend.position = "bottom")
+```
+
+## Tables
+
+```{r fun.-cni.ContMod_all.effects_table}
 cni.ContMod_effects_table <- \(data, title){
 
 df1 <- data %>% 
-    #specify the correct variable/moderator name
-  #pluck(cni.ContMod_tables , "mindsetCNI.pty7") %>% 
+  #cni.ContMod_tables$pty7CNI.mindset %>% 
+    #specify the correct variable/moderator name %>% 
     specify_var_names()%>% 
     mutate(
     p.value = map_chr(p.value, papaja::printp),
@@ -1139,8 +1285,8 @@ df1 <- data %>%
   pivot_longer(cols = c(estimate, ci, p.value),  names_to = "stat", values_to = "stat_value") %>% 
   unite(term, term, stat) %>% 
   pivot_wider(names_from = term, values_from = stat_value) %>% 
-  arrange(level) %>%
-  select(-level)
+  arrange(desc(level)) %>%
+  select(-level) 
 
  # Calculate the number of rows for each level
 no.modtrs <- df1 %>% 
@@ -1164,7 +1310,7 @@ df1 %>%
 ```{r cni.ContMod_tbl_details}
 cni.ContMod_tbl_details <-  cni.ContMod_tblNames %>% 
   mutate(caption_part = rep(pull(cni_plot_details, caption), each = 2),
-         caption = paste0("Association between ",caption_part, " and ", variable_type, " traits"),
+         caption = paste0("Linear Associations between ",caption_part, " and ", variable_type, " traits"),
          title = str_replace_all(table_name , "\\.", "~")) %>% 
   select(table_name, title, caption, variable_type)
 ```
@@ -1182,117 +1328,359 @@ cni.ContMod_tbl_details %>%
   })
 ```
 
-```{r fun.-plot-cni.ContMod}
-#"Moderating effects on CNI: Individual vs Community"
-cni.pty_effects_plot <-\(data){
 
-data %>% 
-  #only linear effects
-  filter(term == "z_ctry_response:modtr_score") %>% 
-  specify_var_names() %>% 
-  with_groups(modtr, ~ mutate(.x, avg_abs_estimate = mean(abs(estimate)))) %>% 
-  mutate(
-    modtr = fct_reorder(modtr, avg_abs_estimate, .desc = FALSE),
-    color = case_when(
-      modtr == "Conscientiousness" ~ "C",
-      modtr == "Honesty" ~ "H",
-      modtr == "Agreeableness" ~ "A",
-      modtr == "Resilience" ~ "R",
-      modtr == "Extraversion" ~ "E",
-      modtr == "Originality/Virtuosity" ~ "O",
-      modtr == "Disintegration" ~ "D",
-      TRUE ~ "Other"),
-    sig = case_when(
-      p.value < .05 & estimate > 0 ~ "Pos",
-      p.value < .05 & estimate < 0 ~ "Neg",
-      TRUE ~ "NOT")
-  ) %>%
-  ggplot(aes(x = modtr, y = estimate, fill = color, alpha = level)) +
-  geom_col(position = position_dodge(width = 0.8)) +
-  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), 
-                position = position_dodge(width = 0.8),
-                width = 0.25) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
- scale_fill_manual(values = c(
-   "C" = "#ff6f91",
-   "H" = "#377EB8",
-   "A" = "#008f7a",
-   "R" = "#e6d021",
-   "E" = "#d7573b",
-   "O" = "#c67533",
-   "D" = "#646199"
- )) +
-  scale_alpha_manual(values = c("Individual" = 1, "Community" = 0.4)) +
-  labs(x = "Moderator", y = "Estimate",
-      # title = title,
-       fill = "Trait", alpha = "Level") +
-  theme_bw() +
-  theme(legend.position = "bottom", 
-        text = element_text(family = "serif", size = 14)) +
-  coord_flip() +
-  guides(fill = "none")  
-} #, title
+## Plots
 
-cni.mindset_effects_plot <- \(data){
+```{r fun.plot-high-low-effects}
+plot_high.low_mindset_effects <- function(data) {
 
-data %>% 
-#only linear effects
-  filter(term == "z_ctry_response:modtr_score") %>%
-   specify_var_names() %>%
-   with_groups(modtr, ~ mutate(.x, avg_abs_estimate = mean(abs(estimate)))) %>% 
-   mutate(
-         modtr = fct_reorder(modtr, avg_abs_estimate, .desc = FALSE),
-     color = case_when(
-     modtr == "Alpha" ~ "Isms",
-     modtr == "Beta" ~ "Isms",
-     modtr == "Gamma" ~ "Isms",
-     modtr == "Delta" ~ "Isms",
-     modtr == "Traditional family structure" ~ "Globe",
-     modtr == "Uncertainty avoidance" ~ "Globe",
-     modtr == "Achievement orientation" ~ "Globe",
-     modtr == "Aggression" ~ "Globe",
-     modtr == "Humane" ~ "Globe", 
-     modtr == "Masculinity" ~ "Globe",
-     modtr == "Individualism" ~ "Globe",
-     modtr == "Power distance" ~ "Globe",
-     modtr == "Future orientation" ~ "Globe",
-     modtr == "Fanaticism" ~ "Fanaticism",
-     modtr == "Extremism - Yugoslavia" ~ "Fanaticism",
-     modtr == "Extremism - Islam"  ~ "Fanaticism",
-     modtr == "Extremism - pan-cultural" ~ "Fanaticism",
-     modtr == "Divine Power" ~ "Fanaticism",
-     modtr == "Proviolence" ~ "Fanaticism",
-     modtr == "Vile world" ~ "Fanaticism",
-     modtr == "Failed state perception" ~ "Failed state"),
-     
-     sig = case_when(
-       p.value < .05 & estimate > 0 ~ "Pos",
-       p.value < .05 & estimate < 0 ~ "Neg",
-       TRUE ~ "NOT")) %>%
-  ggplot(aes(x = modtr, y = estimate, fill = color, alpha = level)) +
-  geom_col(position = position_dodge(width = 0.8)) +
-  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), position = position_dodge(width = 0.8),
- width = 0.25) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
-scale_fill_manual(values = c(
- "Isms" = "#ff6f91",
- "Globe" = "#377EB8",
- "Fanaticism" = "#008f7a",
- "Failed state" = "#646199"
-)) +
-  scale_alpha_manual(values = c("Individual" = 1, "Community" = 0.4)) +
-  labs(x = "Moderator", y = "Estimate",
-    #   title = title,
-       fill = "Trait", alpha = "Level") +
-  theme_bw() +
-  theme(legend.position = "bottom",
-        text = element_text(family = "serif", size = 13.7)) +
-  coord_flip()
+  base_data <- data %>%
+    specify_var_names() %>%
+    filter(round(p.value, 3) < 0.05) %>% #distinct(level) %>% 
+    arrange(desc(abs(estimate))) %>%
+    mutate(
+      level = case_when(
+    level == "Community" ~ "Country",
+    TRUE ~ level  # This keeps other values unchanged
+  ),
+      color = case_when(
+        modtr %in% c("Alpha", "Beta", "Gamma", "Delta") ~ "Isms",
+        modtr %in% c("Traditional family structure", "Uncertainty avoidance", "Achievement orientation",
+                     "Assertiveness", "Humane", "Masculinity", "Ingroup_Collectivism", "Power distance", "Future orientation") ~ "Globe",
+        modtr %in% c("Fanaticism", "Extremism - Yugoslavia", "Extremism - Islam", "Extremism - pan-cultural",
+                     "Divine Power", "Proviolence", "Vile world") ~ "Fanaticism",
+        modtr == "Failed state perception" ~ "Failed state"
+      ),
+      term_type = case_when(
+  term == "z_ctry_response:modtr_score" ~ "Linear",
+  term == "z_ctry_response:I(modtr_score^2)" ~ "Quadratic",
+  TRUE ~ NA_character_, 
+        .default = NA_character_)
+    )
+  
+  # Select 10 highest and 10 lowest estimates and tag them as 'Highest' or 'Lowest'
+  highest_10 <- base_data %>% head(10) %>% mutate(group = "Highest 10 Estimates")
+  lowest_10 <- base_data %>% tail(10) %>% mutate(group = "Lowest 10 Estimates")
+  
+  # Combine the data
+  all_data <- bind_rows(highest_10, lowest_10)
 
-} #, title
+  # Define the overall range of estimates for consistent axis scaling
+  estimate_range <- range(c(all_data$conf.high, all_data$conf.low))
+
+  # Define the plot
+  combined_plot <- ggplot(all_data, aes(x = reorder(modtr, estimate), y = estimate, color = color, linetype = term_type, shape = level)) +
+    geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0, alpha = 0.3, size = 3, position = position_dodge(width = 0.4), stat = "identity", linetype = "solid") +
+    geom_point(size = 2, position = position_dodge2(width = 0.4)) +
+    geom_linerange(aes(ymin = 0, ymax = estimate), position = position_dodge(width = 0.4)) +
+    scale_shape_manual(values = c("Country" = 15, "Individual" = 17), drop = FALSE) +
+    scale_color_manual(values = c("Isms" = "#ff6f91", "Globe" = "#377EB8", "Fanaticism" = "#008f7a", "Failed state" = "#646199"), drop = FALSE) +
+    scale_linetype_manual(values = c("Linear" = "dotdash", "Quadratic" = "solid"), drop = FALSE) +
+    scale_y_continuous(limits = estimate_range) +  # Ensure consistent y-axis limits
+    coord_flip() +
+    facet_wrap(~group, ncol = 1, scales = "free_y") +  # Facet the plot into Highest and Lowest
+    theme_minimal(base_family = "serif", base_size = 12) +
+    labs(
+      x = NULL,
+      y = "Estimate",
+      color = "Domain",
+      shape = "Level",
+      linetype = "Association"
+    ) +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold"),
+      legend.position = "bottom",
+      axis.text.y = element_text(size = 10)
+    )+
+    guides(
+  color = guide_legend(ncol = 2, title.position = "top"),  # 2 columns for Domain
+  shape = guide_legend(ncol = 1, title.position = "top"),  # 1 column for Level
+  linetype = guide_legend(ncol = 1, title.position = "top")  # 1 column for Association
+)
+
+  
+  return(combined_plot)
+}
+
+plot_high.low_pty_effects <- function(data) {
+  base_data <- data %>%
+   # cni.ContMod_tables$ismCNI.pty %>% 
+    specify_var_names() %>%
+    filter(round(p.value, 3) < 0.05) %>%
+    arrange(desc(abs(estimate))) %>%
+    mutate(
+      level = case_when(
+        level == "Community" ~ "Country",
+        TRUE ~ level),
+      color = modtr,
+      term_type = case_when(
+        term == "z_ctry_response:modtr_score" ~ "Linear",
+        term == "z_ctry_response:I(modtr_score^2)" ~ "Quadratic",
+        TRUE ~ NA_character_, 
+        .default = NA_character_)
+    )
+  
+  # Select 10 highest and 10 lowest estimates and tag them as 'Highest' or 'Lowest'
+  highest_10 <- base_data %>% head(10) %>% mutate(group = "Highest 10 Estimates")
+  lowest_10 <- base_data %>% tail(10) %>% mutate(group = "Lowest 10 Estimates")
+  
+  # Combine the data
+  all_data <- bind_rows(highest_10, lowest_10)
+  # Define the overall range of estimates for consistent axis scaling
+  estimate_range <- range(c(all_data$conf.low, all_data$conf.high))
+  
+  # Define the plot
+  combined_plot <- ggplot(all_data, aes(x = reorder(modtr, estimate), y = estimate, color = color, linetype = term_type, shape = level)) +
+   geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0, alpha = 0.3, size = 3, position = position_dodge(width = 0.4), stat = "identity", linetype = "solid") +
+    
+    geom_point(aes(shape = level), size = 2, position = position_dodge(width = 0.4)) +
+    
+    geom_linerange(aes(ymin = 0, ymax = estimate, linetype = term_type), position = position_dodge(width = 0.4)) +
+    
+    scale_shape_manual(values = c("Country" = 15, "Individual" = 17), drop = FALSE) +
+    scale_fill_manual(values = c(
+      "Conscientiousness" = "#ff6f91",
+      "Honesty" = "#377EB8",
+      "Agreeableness" = "#008f7a",
+      "Resilience" = "#e6d021",
+      "Extraversion" = "#d7573b",
+      "Originality/Virtuosity" = "#c67533",
+      "Disintegration" = "#646199"
+    )) +
+    scale_color_manual(values = c(
+      "Conscientiousness" = "#ff6f91",
+      "Honesty" = "#377EB8",
+      "Agreeableness" = "#008f7a",
+      "Resilience" = "#e6d021",
+      "Extraversion" = "#d7573b",
+      "Originality/Virtuosity" = "#c67533",
+      "Disintegration" = "#646199"
+    )) +
+    scale_linetype_manual(values = c("Linear" = "dotdash", "Quadratic" = "solid"), drop = FALSE) +
+    scale_y_continuous(limits = estimate_range) +  # Ensure consistent y-axis limits
+    coord_flip() +
+    facet_wrap(~group, ncol = 1, scales = "free_y") +  # Facet the plot into Highest and Lowest
+    theme_minimal(base_family = "serif", base_size = 12) +
+    labs(
+      x = NULL,
+      y = "Estimate",
+      color = "Domain",
+      fill = "Domain",
+      shape = "Level",
+      linetype = "Association"
+    ) +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold"),
+      legend.position = "bottom",
+      axis.text.y = element_text(size = 10)
+    ) +
+    guides(
+      color = guide_legend(ncol = 2, title.position = "top"),  # 2 columns for Domain
+      fill = guide_legend(ncol = 2, title.position = "top"),  # 2 columns for Domain (for the ribbon)
+      shape = guide_legend(ncol = 1, title.position = "top"),  # 1 column for Level
+      linetype = guide_legend(ncol = 1, title.position = "top")  # 1 column for Association
+    )
+  
+  return(combined_plot)
+}
 ```
 
-```{r}
+```{r echo=F}
+#| fig-height: 7
+#| fig-width: 10
+#| out-width: "100%"
+#| fig-cap-location: bottom
+#| fig-cap: 
+#|   !expr cni.ContMod_tbl_details %>%
+#|   filter(variable_type == "mindset") %>% 
+#|   mutate(caption = str_extract(caption, "Associations.*")) %>% 
+#|     pull(caption)
+
+cni.ContMod_tbl_details %>%
+  filter(variable_type == "mindset") %>%
+  pull(table_name) %>%
+  walk(~ {
+    cat("\n\n")
+    # Extract the table and generate the plot
+    table_data <- pluck(cni.ContMod_tables, .x )
+    plot <- 
+      plot_high.low_mindset_effects(table_data)
+    
+    # Print the plot
+    print(plot)
+    cat("\n\n")
+  })
+```
+
+```{r echo=F}
+#| fig-height: 7
+#| fig-width: 10
+#| out-width: "100%"
+#| fig-cap-location: bottom
+#| fig-cap: 
+#|   !expr cni.ContMod_tbl_details %>%
+#|   filter(variable_type == "personality") %>% 
+#|   mutate(caption = str_extract(caption, "Associations.*")) %>% 
+#|     pull(caption)
+
+cni.ContMod_tbl_details %>%
+  filter(variable_type == "personality") %>%
+  pull(table_name) %>%
+  walk(~ {
+    cat("\n\n")
+    # Extract the table and generate the plot
+    table_data <- pluck(cni.ContMod_tables, .x )
+    plot <- 
+      plot_high.low_pty_effects(table_data)
+    
+    # Print the plot
+    print(plot)
+    cat("\n\n")
+  })
+```
+
+
+
+```{r fun.-plot-cni.ContMod}
+#"Moderating effects on CNI: Individual vs Country"
+
+cni.pty_effects_plot <- function(data) {
+  data %>% 
+    #only linear effects
+    filter(term == "z_ctry_response:modtr_score") %>% 
+    specify_var_names() %>% 
+    with_groups(modtr, ~ mutate(.x, avg_abs_estimate = mean(abs(estimate)))) %>% 
+    mutate(
+      modtr = fct_reorder(modtr, avg_abs_estimate, .desc = FALSE),
+      color = case_when(
+        modtr == "Conscientiousness" ~ "C",
+        modtr == "Honesty" ~ "H",
+        modtr == "Agreeableness" ~ "A",
+        modtr == "Resilience" ~ "R",
+        modtr == "Extraversion" ~ "E",
+        modtr == "Originality/Virtuosity" ~ "O",
+        modtr == "Disintegration" ~ "D",
+        TRUE ~ "Other"),
+      sig = case_when(
+        p.value < .05 & estimate > 0 ~ "Pos",
+        p.value < .05 & estimate < 0 ~ "Neg",
+        TRUE ~ "NOT"),
+      level = case_when(
+        level == "Community" ~ "Country",
+        TRUE ~ level
+      ),
+      asterisk = ifelse(p.value < 0.05, "*", ""),
+      asterisk_position = ifelse(estimate > 0, conf.high, conf.low)
+    ) %>%
+    ggplot(aes(x = modtr, y = estimate, fill = color, alpha = level)) +
+    geom_col(position = position_dodge(width = 0.8)) +
+    geom_errorbar(aes(ymin = conf.low, ymax = conf.high), 
+                  position = position_dodge(width = 0.8),
+                  width = 0.25) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+    # Add asterisks for significant results
+    geom_text(aes(label = asterisk, 
+                  y = asterisk_position,
+                  vjust = 1.37),
+              position = position_dodge(width = 0.8),
+   show.legend  = FALSE,
+              size = 5) +
+    scale_fill_manual(values = c(
+      "C" = "#ff6f91",
+      "H" = "#377EB8",
+      "A" = "#008f7a",
+      "R" = "#e6d021",
+      "E" = "#d7573b",
+      "O" = "#c67533",
+      "D" = "#646199"
+    )) +
+    scale_alpha_manual(values = c("Individual" = 1, "Country" = 0.4)) +
+    labs(x = "Moderator", y = "Estimate",
+         fill = "Trait", alpha = "Level") +
+    theme_bw() +
+    theme(legend.position = "bottom", 
+          text = element_text(family = "serif", size = 12)) +
+    coord_flip() +
+    guides(fill = "none")  
+}
+
+cni.mindset_effects_plot <- function(data) {
+  data %>% 
+    #only linear effects
+    filter(term == "z_ctry_response:modtr_score") %>%
+    specify_var_names() %>%
+    with_groups(modtr, ~ mutate(.x, avg_abs_estimate = mean(abs(estimate)))) %>% 
+    mutate(
+      modtr = fct_reorder(modtr, avg_abs_estimate, .desc = FALSE),
+      color = case_when(
+        modtr == "Alpha" ~ "Isms",
+        modtr == "Beta" ~ "Isms",
+        modtr == "Gamma" ~ "Isms",
+        modtr == "Delta" ~ "Isms",
+        modtr == "Traditional family structure" ~ "Globe",
+        modtr == "Uncertainty avoidance" ~ "Globe",
+        modtr == "Achievement orientation" ~ "Globe",
+        modtr == "Assertiveness" ~ "Globe",
+        modtr == "Humane" ~ "Globe", 
+        modtr == "Masculinity" ~ "Globe",
+        modtr == "Ingroup_Collectivism" ~ "Globe",
+        modtr == "Power distance" ~ "Globe",
+        modtr == "Future orientation" ~ "Globe",
+        modtr == "Fanaticism" ~ "Fanaticism",
+        modtr == "Extremism - Yugoslavia" ~ "Fanaticism",
+        modtr == "Extremism - Islam"  ~ "Fanaticism",
+        modtr == "Extremism - pan-cultural" ~ "Fanaticism",
+        modtr == "Divine Power" ~ "Fanaticism",
+        modtr == "Proviolence" ~ "Fanaticism",
+        modtr == "Vile world" ~ "Fanaticism",
+        modtr == "Failed state perception" ~ "Failed state"),
+      sig = case_when(
+        p.value < .05 & estimate > 0 ~ "Pos",
+        p.value < .05 & estimate < 0 ~ "Neg",
+        TRUE ~ "NOT"),
+      level = case_when(
+        level == "Community" ~ "Country",
+        TRUE ~ level
+      ),
+      asterisk = ifelse(p.value < 0.05, "*", ""),
+      asterisk_position = ifelse(estimate > 0, conf.high, conf.low)
+    ) %>%
+    ggplot(aes(x = modtr, y = estimate, fill = color, alpha = level)) +
+    geom_col(position = position_dodge(width = 0.8)) +
+    geom_errorbar(aes(ymin = conf.low, ymax = conf.high), 
+                  position = position_dodge(width = 0.8),
+                  width = 0.25) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+    # Add asterisks for significant results
+    geom_text(aes(label = asterisk, 
+                  y = asterisk_position,
+                  vjust = 1.37),
+              position = position_dodge(width = 0.8), size = 5,
+          show.legend = FALSE) +
+    scale_fill_manual(values = c(
+      "Isms" = "#ff6f91",
+      "Globe" = "#377EB8",
+      "Fanaticism" = "#008f7a",
+      "Failed state" = "#646199"),
+      guide = guide_legend(
+        position = "bottom",
+        ncol = 2,
+        direction = "vertical")) +
+    scale_alpha_manual(values = c("Individual" = 1, "Country" = 0.4),
+      guide = guide_legend(
+        position = "bottom",
+        ncol = 1,
+        direction = "vertical")) +
+    labs(x = "Moderator", y = "Estimate",
+         fill = "Trait", alpha = "Level") +
+    theme_bw() +
+    theme(legend.position = "bottom",
+          text = element_text(family = "serif", size = 12)) +
+    coord_flip()
+}
+```
+
+```{r echo=F}
 #| fig-height: 7
 #| fig-width: 10
 #| out-width: "100%"
@@ -1335,6 +1723,95 @@ cni.ContMod_tbl_details %>%
     cat("\n\n")
   })
 ```
+
+```{r save-plots-personalityMods, echo=F, eval=F}
+# Save plots so that they can be added to word.
+
+# Mindset Moderators
+
+library(ggplot2)
+library(purrr)
+library(here)
+library(fs)
+
+# Define the dimensions for your plots
+plot_width <- 6.7 # in inches
+plot_height <- 4.4  # in inches
+
+# Specify the directory where you want to save the plots
+save_dir <- here("scripts", "Study1_plots", "personality_mods")
+
+# Create the directory if it doesn't exist
+dir_create(save_dir)
+
+# Modify your existing code to save each plot
+cni.ContMod_tbl_details %>% 
+  filter(variable_type == "personality") %>% 
+  pull(table_name) %>% 
+  walk(\(table_name) {
+    # Generate the plot
+    plot <- pluck(cni.ContMod_tables, table_name) %>% 
+      cni.pty_effects_plot()
+    
+    # Create a filename for the plot
+    plot_name <- paste0("plot_", table_name)
+    filename <- here("scripts", "Study1_plots","personality_mods", paste0(plot_name, ".png"))
+    
+    # Save the plot
+    ggsave(filename, plot, width = plot_width, height = plot_height)
+    
+    # Optionally, you can still print the plot to the console
+    print(plot)
+    
+    cat("\nSaved plot to", filename, "\n\n")
+  })
+```
+
+```{r save-plots-mindsetMods, echo=F, eval=F}
+# Save plots so that they can be added to word.
+
+# Mindset Moderators
+
+library(ggplot2)
+library(purrr)
+library(here)
+library(fs)
+
+# Define the dimensions for your plots
+plot_width <- 6.7 # in inches
+plot_height <- 8.4  # in inches
+
+# Specify the directory where you want to save the plots
+save_dir <- here("scripts", "Study1_plots", "mindset_mods")
+
+# Create the directory if it doesn't exist
+dir_create(save_dir)
+
+# Modify your existing code to save each plot
+cni.ContMod_tbl_details %>% 
+  filter(variable_type == "mindset") %>% 
+  pull(table_name) %>% 
+  walk(\(table_name) {
+    # Generate the plot
+    plot <- pluck(cni.ContMod_tables, table_name) %>% 
+      cni.mindset_effects_plot()
+    
+    # Create a filename for the plot
+    plot_name <- paste0("plot_", table_name)
+    filename <- here("scripts", "Study1_plots", "mindset_mods",paste0(plot_name, ".png"))
+    
+    # Save the plot
+    ggsave(filename, plot, width = plot_width, height = plot_height)
+    
+    # Optionally, you can still print the plot to the console
+    print(plot)
+    
+    cat("\nSaved plot to", filename, "\n\n")
+  })
+```
+
+
+
 
 # RQ3.1: CNI~well-being
 
@@ -1749,8 +2226,8 @@ swb.cni_heterosk_tbl %>%
 @tbl-swb.cni_heteroskt reveals that the assumption of homoscedasticity is satisfied for the majority of the models under consideration. However, the Mindset and Isms CNI models exhibit evidence of heteroscedasticity, as indicated by their respective p-values (p < .05). Consequently, the findings pertaining to these two models should be interpreted with caution, as the violation of the homoscedasticity assumption may impact the reliability of the parameter estimates and statistical inferences drawn from these models. 
 
 
-```{r fun.-hetero_plot}
-hetero_plot <- \(model){ 
+```{r fun.-heterosk_plot}
+heterosk_plot <- \(model){ 
   
     plot_it <- \(data){
       data %>% 
@@ -1782,13 +2259,13 @@ height = .1, width = 0) + labs(x = "Est CNI",
   )
     
 return(patch_plot) }
-
-hetero_plot("mindsetCNI_mod")
-names(all_swb.cni_mods_heterosk)
-
-hetero_swb_linear = 
 ```
 
+```{r plot_swb-details}
+plot_swb_details <- tibble(cni_type = c("mindset", "ism", "globe", "fantc", "pty6", "pty7")) %>% 
+  mutate(cni_mod = paste0(cni_type, "CNI_mod"),
+         caption = paste0("Association between ", cni_type, " CNI and Subjective Well-being at Individual level" ))
+```
 
 ```{r plot-heteroskedasticity, echo=F}
 #| fig-height: 4
@@ -1804,7 +2281,7 @@ plot_swb_details %>%
   pull(cni_mod) %>% 
   walk(~{
     cat("\n\n")  
-    print(plot_swb.cni_patch(.x))
+    print(heterosk_plot(.x))
     cat("\n\n") 
   })
 ```
@@ -1863,11 +2340,7 @@ plot_swb.cni_patch <- \(model){
 }
 ```
 
-```{r plot_swb-details}
-plot_swb_details <- tibble(cni_type = c("mindset", "ism", "globe", "fantc", "pty6", "pty7")) %>% 
-  mutate(cni_mod = paste0(cni_type, "CNI_mod"),
-         caption = paste0("Association between ", cni_type, " CNI and Subjective Well-being at Individual level" ))
-```
+
 
 ```{r plot_swb-walk, echo=F}
 #| fig-height: 4

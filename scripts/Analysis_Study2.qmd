@@ -1119,9 +1119,6 @@ cni.ContMod_effects <- function(cni_profiles_data, modtr_pattern) {
 ```
 
 
-
-#-----------------------
-
 ```{r table_contMods, eval = F, echo=FALSE, results='asis'}
 df <- data.frame(
   `Mindset` = c(
@@ -1414,7 +1411,7 @@ no.modtrs <- df2 %>%
 df2 %>% 
   kable(booktabs = T, 
         escape = F,
-        format = "html",
+        format = "latex",
         longtable = TRUE,
         col.names = c(" ", "Est", "95\\% CI", "p", "Est", "95\\% CI", "p"),
         caption = title ) %>%  #pluck(caption_options,  deparse(substitute(data)))) %>% 
@@ -1779,7 +1776,7 @@ cni.CatMod_effects_models <- function(cni_profiles_data, modtr_cat) {
 ```
 
 ```{r parallel-processing-mindsetCNI.catMod, echo = F, eval = F}
-# Hardware: 12 cores, 62GB RAM
+# Hardware used: (12-1) cores, 62GB RAM
 
 # Load necessary libraries
 library(furrr);library(purrr);library(tictoc)
