@@ -155,6 +155,7 @@ compute_trait_score <- function(data, pos_items, rev_items = NULL) {
   }
 }
 
+
 data1 <- all_data1 %>% 
   select(
     list_c(map(c("Isms","Globe", "Values", "Fanaticism", "Social_Axioms", "Failed_state_perception","Personality6",
@@ -736,6 +737,7 @@ cni_plot_details %>%
 ```
 
 ```{r range-CNI, eval=F, echo=F}
+
 cni_plot_details %>% 
   pull(cni_mod) %>% 
   map_dfr(~{
@@ -807,7 +809,9 @@ save(CNImods_table1,
 load(here("objects/Study1/CNImods_table1.Rdata"))
 ```
 
+
 ```{r tbl-cni-mods, results='asis', echo=F, eval=T}
+
 #|tbl-cap: "Mindset and Personality Cultural Normativity Index (CNI) Models"
 
 CNImods_table1
@@ -839,6 +843,7 @@ load(here("objects/Study1/CNI-ctry-trends1.Rdata"))
 
 ```{r tbl-ctry.trends-allCNImods, results='asis', echo=F, eval=T}
 #|label: tbl-ctry.trends-allCNImods
+#|tbl-cap: "Country estimates across CNI types"
 
 all_mods_ctry.trends %>% 
   tibble() %>% 
@@ -854,8 +859,8 @@ all_mods_ctry.trends %>%
         escape = F,
         format = "latex",
         longtable = TRUE,
-        col.names = c("Country", "Estimate", "95\\% CI", "$\\textit{p}$"),
-        caption = "Country estimates across CNI types") %>% 
+       # longtable = T,
+        col.names = c("Country", "Estimate", "95\\% CI", "$\\textit{p}$")) %>% 
   kable_styling(latex_options = c("repeat_header", "longtable")) %>% 
   group_rows("Mindset CNI", 1, 8) %>% 
   group_rows("Isms-Mindset CNI", 8+1, 8*2) %>%  
@@ -1099,7 +1104,7 @@ specify_var_names <- \(data){
       str_detect(modtr, "globe_ag") ~ "Assertiveness", 
       str_detect(modtr, "globe_hu") ~ "Humane",
       str_detect(modtr, "globe_ma") ~ "Masculinity",
-      str_detect(modtr, "globe_in") ~ "Ingroup_Collectivism",
+      str_detect(modtr, "globe_in") ~ "Ingroup Collectivism",
       str_detect(modtr, "globe_po") ~ "Power distance",
       str_detect(modtr, "globe_fu") ~ "Future orientation",
       str_detect(modtr, "fntc\\.") ~ "Fanaticism",
@@ -1181,7 +1186,7 @@ load(here("objects/Study1/cni.ContMod_tables1.Rdata"))
 ## Descriptives - Effect size estimates 
 
 ```{r overall-ContEst-trends, results='asis'}
-#| tbl-cap: "Descriptive Statistics for Effect size Estimates"
+#| tbl-cap: "Descriptive Statistics for Continuos Moderator Effect size Estimates"
 library(e1071)
 
 list_rbind(cni.ContMod_tables, names_to = "model") %>% 
@@ -1218,8 +1223,8 @@ list_rbind(cni.ContMod_tables, names_to = "model") %>%
 ```
 
 ```{r overall-ContEst-trends-plot, eval = T, echo = F, results='asis'}
-#| fig-cap: "Distribution of Effects"
-#| fig-width: 7
+#| fig-cap: "Distribution of Continuos Moderator Effect size Estimates"
+#| fig-width: 8
 #| fig-height: 4
 
 plot_cont_effects <- function(plot_type) {
@@ -1271,8 +1276,6 @@ plot_cont_effects("quadratic") +
 cni.ContMod_effects_table <- \(data, title){
 
 df1 <- data %>% 
-  #cni.ContMod_tables$pty7CNI.mindset %>% 
-    #specify the correct variable/moderator name %>% 
     specify_var_names()%>% 
     mutate(
     p.value = map_chr(p.value, papaja::printp),
@@ -1329,7 +1332,9 @@ cni.ContMod_tbl_details %>%
 ```
 
 
-## Plots
+## Plots 
+### Highest & lowest 15
+Given that there are `r (length(str_subset(names(data1), "\\.(indv|comm)$"))-1)*2` (individual level scale scores = `r (length(str_subset(names(data1), "\\.(indv)$")))-1`, country level scale scores = `r (length(str_subset(names(data1), "\\.(comm)$")))-1` and their linear and quadratic associations with CNI types) effect sizes to evaluate in total for each CNI type, it was necessary to identify a starting point. In order to assess the continuous moderator effects for each of the CNI types, the highest 15 and lowest 15 associations (across linear and quadratic) were considered. 
 
 ```{r fun.plot-high-low-effects}
 plot_high.low_mindset_effects <- function(data) {
@@ -1346,7 +1351,7 @@ plot_high.low_mindset_effects <- function(data) {
       color = case_when(
         modtr %in% c("Alpha", "Beta", "Gamma", "Delta") ~ "Isms",
         modtr %in% c("Traditional family structure", "Uncertainty avoidance", "Achievement orientation",
-                     "Assertiveness", "Humane", "Masculinity", "Ingroup_Collectivism", "Power distance", "Future orientation") ~ "Globe",
+                     "Assertiveness", "Humane", "Masculinity", "Ingroup Collectivism", "Power distance", "Future orientation") ~ "Globe",
         modtr %in% c("Fanaticism", "Extremism - Yugoslavia", "Extremism - Islam", "Extremism - pan-cultural",
                      "Divine Power", "Proviolence", "Vile world") ~ "Fanaticism",
         modtr == "Failed state perception" ~ "Failed state"
@@ -1358,47 +1363,48 @@ plot_high.low_mindset_effects <- function(data) {
         .default = NA_character_)
     )
   
-  # Select 10 highest and 10 lowest estimates and tag them as 'Highest' or 'Lowest'
-  highest_10 <- base_data %>% head(10) %>% mutate(group = "Highest 10 Estimates")
-  lowest_10 <- base_data %>% tail(10) %>% mutate(group = "Lowest 10 Estimates")
+  # Select 15 highest and 15 lowest estimates and tag them as 'Highest' or 'Lowest'
+  highest_15 <- base_data %>% head(15) %>% mutate(group = "Highest 15 Estimates")
+  lowest_15 <- base_data %>% tail(15) %>% mutate(group = "Lowest 15 Estimates")
   
   # Combine the data
-  all_data <- bind_rows(highest_10, lowest_10)
+  all_data <- bind_rows(highest_15, lowest_15)
 
   # Define the overall range of estimates for consistent axis scaling
   estimate_range <- range(c(all_data$conf.high, all_data$conf.low))
 
   # Define the plot
-  combined_plot <- ggplot(all_data, aes(x = reorder(modtr, estimate), y = estimate, color = color, linetype = term_type, shape = level)) +
-    geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0, alpha = 0.3, size = 3, position = position_dodge(width = 0.4), stat = "identity", linetype = "solid") +
-    geom_point(size = 2, position = position_dodge2(width = 0.4)) +
+  combined_plot <- ggplot(all_data, 
+    aes(x = reorder(modtr, estimate), y = estimate, color = color, linetype = term_type, shape = level, group = interaction(modtr, term_type, level))) +
+    geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0, alpha = 0.3, size = 3, position = position_dodge(width = 0.4), linetype = "solid") +
+    
+    geom_point(size = 2, position = position_dodge(width = 0.4)) +
+    
     geom_linerange(aes(ymin = 0, ymax = estimate), position = position_dodge(width = 0.4)) +
+    
     scale_shape_manual(values = c("Country" = 15, "Individual" = 17), drop = FALSE) +
     scale_color_manual(values = c("Isms" = "#ff6f91", "Globe" = "#377EB8", "Fanaticism" = "#008f7a", "Failed state" = "#646199"), drop = FALSE) +
     scale_linetype_manual(values = c("Linear" = "dotdash", "Quadratic" = "solid"), drop = FALSE) +
-    scale_y_continuous(limits = estimate_range) +  # Ensure consistent y-axis limits
+    scale_y_continuous(limits = estimate_range) +  
     coord_flip() +
-    facet_wrap(~group, ncol = 1, scales = "free_y") +  # Facet the plot into Highest and Lowest
+    facet_wrap(~group, ncol = 1, scales = "free_y")+
     theme_minimal(base_family = "serif", base_size = 12) +
     labs(
       x = NULL,
       y = "Estimate",
       color = "Domain",
       shape = "Level",
-      linetype = "Association"
-    ) +
-    theme(
-      plot.title = element_text(hjust = 0.5, face = "bold"),
-      legend.position = "bottom",
-      axis.text.y = element_text(size = 10)
-    )+
+      linetype = "Association") +
+            theme_bw() +
+    theme(text = element_text(family = "serif", size = 12), legend.position = "bottom")+
+
     guides(
   color = guide_legend(ncol = 2, title.position = "top"),  # 2 columns for Domain
   shape = guide_legend(ncol = 1, title.position = "top"),  # 1 column for Level
   linetype = guide_legend(ncol = 1, title.position = "top")  # 1 column for Association
 )
 
-  
+
   return(combined_plot)
 }
 
@@ -1420,17 +1426,18 @@ plot_high.low_pty_effects <- function(data) {
         .default = NA_character_)
     )
   
-  # Select 10 highest and 10 lowest estimates and tag them as 'Highest' or 'Lowest'
-  highest_10 <- base_data %>% head(10) %>% mutate(group = "Highest 10 Estimates")
-  lowest_10 <- base_data %>% tail(10) %>% mutate(group = "Lowest 10 Estimates")
+  # Select 15 highest and 15 lowest estimates and tag them as 'Highest' or 'Lowest'
+  highest_15 <- base_data %>% head(15) %>% mutate(group = "Highest 15 Estimates")
+  lowest_15 <- base_data %>% tail(15) %>% mutate(group = "Lowest 15 Estimates")
   
   # Combine the data
-  all_data <- bind_rows(highest_10, lowest_10)
+  all_data <- bind_rows(highest_15, lowest_15)
   # Define the overall range of estimates for consistent axis scaling
   estimate_range <- range(c(all_data$conf.low, all_data$conf.high))
   
   # Define the plot
-  combined_plot <- ggplot(all_data, aes(x = reorder(modtr, estimate), y = estimate, color = color, linetype = term_type, shape = level)) +
+  combined_plot <- ggplot(all_data, 
+    aes(x = reorder(modtr, estimate), y = estimate, color = color, linetype = term_type, shape = level, group = interaction(modtr, term_type, level))) +
    geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0, alpha = 0.3, size = 3, position = position_dodge(width = 0.4), stat = "identity", linetype = "solid") +
     
     geom_point(aes(shape = level), size = 2, position = position_dodge(width = 0.4)) +
@@ -1467,13 +1474,11 @@ plot_high.low_pty_effects <- function(data) {
       color = "Domain",
       fill = "Domain",
       shape = "Level",
-      linetype = "Association"
-    ) +
+      linetype = "Association") +
+    theme_bw() +
     theme(
-      plot.title = element_text(hjust = 0.5, face = "bold"),
-      legend.position = "bottom",
-      axis.text.y = element_text(size = 10)
-    ) +
+      text = element_text(family = "serif", size = 12), legend.position = "bottom")  +
+
     guides(
       color = guide_legend(ncol = 2, title.position = "top"),  # 2 columns for Domain
       fill = guide_legend(ncol = 2, title.position = "top"),  # 2 columns for Domain (for the ribbon)
@@ -1486,8 +1491,8 @@ plot_high.low_pty_effects <- function(data) {
 ```
 
 ```{r echo=F}
-#| fig-height: 7
-#| fig-width: 10
+#| fig-height: 10
+#| fig-width: 7
 #| out-width: "100%"
 #| fig-cap-location: bottom
 #| fig-cap: 
@@ -1513,8 +1518,8 @@ cni.ContMod_tbl_details %>%
 ```
 
 ```{r echo=F}
-#| fig-height: 7
-#| fig-width: 10
+#| fig-height: 10
+#| fig-width: 7
 #| out-width: "100%"
 #| fig-cap-location: bottom
 #| fig-cap: 
@@ -1539,7 +1544,7 @@ cni.ContMod_tbl_details %>%
   })
 ```
 
-
+### Linear effects
 
 ```{r fun.-plot-cni.ContMod}
 #"Moderating effects on CNI: Individual vs Country"
@@ -1623,7 +1628,7 @@ cni.mindset_effects_plot <- function(data) {
         modtr == "Assertiveness" ~ "Globe",
         modtr == "Humane" ~ "Globe", 
         modtr == "Masculinity" ~ "Globe",
-        modtr == "Ingroup_Collectivism" ~ "Globe",
+        modtr == "Ingroup Collectivism" ~ "Globe",
         modtr == "Power distance" ~ "Globe",
         modtr == "Future orientation" ~ "Globe",
         modtr == "Fanaticism" ~ "Fanaticism",
