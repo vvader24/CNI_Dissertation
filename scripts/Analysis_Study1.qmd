@@ -1170,11 +1170,6 @@ cni.ContMod_tables <- map2(
 save(cni.ContMod_tables,
      file = here("objects/Study1/cni.ContMod_tables1.Rdata"))
 
-
-cni.ContMod_tables %>% 
-  pluck("pty7CNI.mindset") %>% 
-  specify_var_names() %>% 
-  pull(modtr)
 ```
 
 ```{r load-cni.ContMod-effects-tbl, echo = F}
@@ -1272,6 +1267,8 @@ plot_cont_effects("quadratic") +
 
 ## Tables
 
+### Linear and Quadratic effects
+
 ```{r fun.-cni.ContMod_all.effects_table}
 cni.ContMod_effects_table <- \(data, title){
 
@@ -1289,7 +1286,8 @@ df1 <- data %>%
   unite(term, term, stat) %>% 
   pivot_wider(names_from = term, values_from = stat_value) %>% 
   arrange(desc(level)) %>%
-  select(-level) 
+  select(-level) %>% 
+  select(modtr, contains("Linear"), contains("Quadratic"))
 
  # Calculate the number of rows for each level
 no.modtrs <- df1 %>% 
@@ -1313,7 +1311,7 @@ df1 %>%
 ```{r cni.ContMod_tbl_details}
 cni.ContMod_tbl_details <-  cni.ContMod_tblNames %>% 
   mutate(caption_part = rep(pull(cni_plot_details, caption), each = 2),
-         caption = paste0("Linear Associations between ",caption_part, " and ", variable_type, " traits"),
+         caption = paste0("Associations between ",caption_part, " and ", variable_type, " traits"),
          title = str_replace_all(table_name , "\\.", "~")) %>% 
   select(table_name, title, caption, variable_type)
 ```
@@ -1331,9 +1329,99 @@ cni.ContMod_tbl_details %>%
   })
 ```
 
+### Overall effects
+To distinguish the most influential effects, three categories of tables are presented here:
+
+1. Strongest moderators: Effects that significantly enhance or diminish the impact of cultural normativity.
+2. Weakest moderators: Effects that, while statistically significant, have minimal influence on cultural normativity.
+3. Non-significant effects: Factors that show no statistically significant moderation of cultural normativity.
+
+This comprehensive approach allows us to identify key moderators, subtle influences, and factors that do not play a substantial role in modifying the effect of cultural normativity.
+
+```{r fun.-overall-effects-table}
+overall_table <- function(table_type, title) {
+  table <- bind_rows(cni.ContMod_tables, .id = "model")
+  
+  if (table_type == "overall highest") {
+    table <- table %>%
+      filter(p.value < .05) %>%
+      arrange(desc(abs(estimate)))
+  } else if (table_type == "overall weakest") {
+    table <- table %>%
+      filter(p.value < .05) %>%
+      arrange(abs(estimate))
+  } else if (table_type == "overall n.s") {
+    table <- table %>%
+      filter(p.value >= .05) %>%
+      arrange(abs(estimate))
+  } else {
+    stop("Invalid table_type. Choose 'overall highest', 'overall lowest', or 'overall n.s'")
+  }
+
+final_table <- table %>%
+  head(20) %>%
+  specify_var_names() %>% 
+  separate(model, c("CNI_type", "Moderator_type"), sep = "\\.") %>%
+  mutate(
+    CNI_type = str_remove(CNI_type, "CNI"),
+    CNI_type = str_to_sentence(CNI_type),
+    CNI_type = str_replace_all(CNI_type, c( 
+      "cni" = " CNI",
+      "Ism" = "Isms",
+      "Fantc" = "Fanaticism",
+      "Globe" = "GLOBE", 
+      "Pty6" = "Personality 6",
+      "Pty7" = "Personality 7")),
+    Moderator_type = if_else(Moderator_type == "pty7", "Personality", "Mindset"),
+    p.value = map_chr(p.value, papaja::printp),
+    across(where(is.numeric), ~ round(., 3)),
+    ci = paste0("[", conf.low, ", ", conf.high,"]"),
+    term = ifelse(str_detect(term, "2"), "(b\\textsuperscript{2})", "(b)"),
+    estimate = as.character(estimate),
+    modtr = paste0(modtr, " (", Moderator_type, ")"),
+    modtr = ifelse(level == "Country", 
+                   paste0(modtr, footnote_marker_symbol(1, "latex")),
+                   paste0(modtr, footnote_marker_symbol(2, "latex"))
+    ),
+    CNI_type = str_replace(CNI_type, "CNI", "")
+  ) %>% 
+  select(CNI_type, modtr, term, estimate, ci, p.value)
+
+final_table %>% 
+  kable(booktabs = T, 
+        escape = F,
+        format = "latex",
+        col.names = c("CNI type", "Moderator", "Term", "Est", "95\\% CI", "$\\textit{p}$"),
+        caption = title) %>% 
+  kable_styling() %>% 
+  footnote(symbol = c("Country", "Individual"),
+           symbol_title = "",
+           general = "(b) = Linear model, (b\\textsuperscript{2}) = Quadratic",
+           general_title = "Note:",
+           title_format = "italic", 
+           fixed_small_size = TRUE,
+           footnote_as_chunk = FALSE,
+           threeparttable = TRUE)
+}
+
+overall_table_details <- tibble(
+  table_type = c("overall highest", "overall weakest", "overall n.s"))%>% 
+  mutate(title = paste0("Variables with ", word(table_type , 2), " effect sizes with each CNI type"))
+```
+
+```{r overall-effects-table, echo = F, results='asis'}
+overall_table_details %>%
+  pwalk(function(table_type, title) {
+    cat("\n\n")
+    print(overall_table(table_type, title))
+    cat("\n\n")
+  })
+```
+
+
 
 ## Plots 
-### Highest & lowest 15
+### Variable view: Overall effects 
 Given that there are `r (length(str_subset(names(data1), "\\.(indv|comm)$"))-1)*2` (individual level scale scores = `r (length(str_subset(names(data1), "\\.(indv)$")))-1`, country level scale scores = `r (length(str_subset(names(data1), "\\.(comm)$")))-1` and their linear and quadratic associations with CNI types) effect sizes to evaluate in total for each CNI type, it was necessary to identify a starting point. In order to assess the continuous moderator effects for each of the CNI types, the highest 15 and lowest 15 associations (across linear and quadratic) were considered. 
 
 ```{r fun.plot-high-low-effects}
@@ -1426,12 +1514,12 @@ plot_high.low_pty_effects <- function(data) {
         .default = NA_character_)
     )
   
-  # Select 15 highest and 15 lowest estimates and tag them as 'Highest' or 'Lowest'
-  highest_15 <- base_data %>% head(15) %>% mutate(group = "Highest 15 Estimates")
-  lowest_15 <- base_data %>% tail(15) %>% mutate(group = "Lowest 15 Estimates")
+  # Select 10 highest and 10 lowest estimates and tag them as 'Highest' or 'Lowest'
+  highest_10 <- base_data %>% head(10) %>% mutate(group = "Highest 10 Estimates")
+  lowest_10 <- base_data %>% tail(10) %>% mutate(group = "Lowest 10 Estimates")
   
   # Combine the data
-  all_data <- bind_rows(highest_15, lowest_15)
+  all_data <- bind_rows(highest_10, lowest_10)
   # Define the overall range of estimates for consistent axis scaling
   estimate_range <- range(c(all_data$conf.low, all_data$conf.high))
   
@@ -1510,8 +1598,7 @@ cni.ContMod_tbl_details %>%
     table_data <- pluck(cni.ContMod_tables, .x )
     plot <- 
       plot_high.low_mindset_effects(table_data)
-    
-    # Print the plot
+
     print(plot)
     cat("\n\n")
   })
@@ -1544,15 +1631,26 @@ cni.ContMod_tbl_details %>%
   })
 ```
 
-### Linear effects
+### CNI view: Linear and Quadratic effects
+These plots allow to visualize the causal effects of mindset and personality variables across CNI types. Linear and quadratic relations are plotted separately, while not setting the Estimate axis to same values across all plots. A more variable focused view can be seen in the previous section wherein the focus is mainly on the largest and smallest effects. This is a CNI focused view that allows for comprehending the behavior of variable estimates within every CNI type. 
 
 ```{r fun.-plot-cni.ContMod}
 #"Moderating effects on CNI: Individual vs Country"
-
-cni.pty_effects_plot <- function(data) {
-  data %>% 
-    #only linear effects
-    filter(term == "z_ctry_response:modtr_score") %>% 
+cni.pty_effects_plot <- function(data, association_type) {
+  
+  if (association_type == "linear") {
+    data_ass.type <- data %>% 
+      #linear effects
+      filter(term == "z_ctry_response:modtr_score")
+  } else if (association_type == "quadratic") {
+    data_ass.type <- data %>% 
+      #quadratic effects
+      filter(term == "z_ctry_response:I(modtr_score^2)")
+  } else {
+    stop("Invalid association type. Choose 'linear' or 'quadratic'")
+  }
+   
+    data_ass.type %>%  
     specify_var_names() %>% 
     with_groups(modtr, ~ mutate(.x, avg_abs_estimate = mean(abs(estimate)))) %>% 
     mutate(
@@ -1609,10 +1707,21 @@ cni.pty_effects_plot <- function(data) {
     guides(fill = "none")  
 }
 
-cni.mindset_effects_plot <- function(data) {
-  data %>% 
-    #only linear effects
-    filter(term == "z_ctry_response:modtr_score") %>%
+cni.mindset_effects_plot <- function(data, association_type) {
+  
+  if (association_type == "linear") {
+    data_ass.type <- data %>% 
+      #linear effects
+      filter(term == "z_ctry_response:modtr_score")
+  } else if (association_type == "quadratic") {
+    data_ass.type <- data %>% 
+      #quadratic effects
+      filter(term == "z_ctry_response:I(modtr_score^2)")
+  } else {
+    stop("Invalid association type. Choose 'linear' or 'quadratic'")
+  }
+  
+  data_ass.type %>%
     specify_var_names() %>%
     with_groups(modtr, ~ mutate(.x, avg_abs_estimate = mean(abs(estimate)))) %>% 
     mutate(
@@ -1683,28 +1792,17 @@ cni.mindset_effects_plot <- function(data) {
           text = element_text(family = "serif", size = 12)) +
     coord_flip()
 }
-```
 
-```{r echo=F}
-#| fig-height: 7
-#| fig-width: 10
-#| out-width: "100%"
-#| fig-cap-location: bottom
-#| fig-cap: 
-#|   !expr cni.ContMod_tbl_details %>%
-#|   filter(variable_type == "personality") %>% 
-#|     pull(caption)
-
-cni.ContMod_tbl_details %>%
-  filter(variable_type == "personality") %>% 
-  pull(table_name) %>%
-  walk(\(table_name) {
-    cat("\n\n")
-    print(
-      pluck(cni.ContMod_tables, table_name) %>% 
-        cni.pty_effects_plot())
-    cat("\n\n")
-  })
+cni.ContMod_plot_details <- cni.ContMod_tbl_details %>% 
+    # Duplicate each row
+    slice(rep(1:n(), each = 2)) %>%
+    # Add association_type column
+    mutate(association_type = rep(c("linear", "quadratic"), n() / 2)) %>%
+    # Modify caption based on association_type
+    mutate(caption = case_when(
+     association_type == "linear" ~ paste0("Linear ", sub("Associations", "associations", caption)),
+      association_type == "quadratic" ~ paste0("Quadratic ", sub("Associations", "associations", caption))
+    ))
 ```
 
 ```{r echo = F}
@@ -1713,21 +1811,47 @@ cni.ContMod_tbl_details %>%
 #| out-width: "100%"
 #| fig-cap-location: bottom
 #| fig-cap: 
-#|   !expr cni.ContMod_tbl_details %>%
+#|   !expr cni.ContMod_plot_details %>%
 #|   filter(variable_type == "mindset") %>% 
 #|     pull(caption)
 
-cni.ContMod_tbl_details %>%
+cni.ContMod_plot_details %>%
   filter(variable_type == "mindset") %>% 
-  pull(table_name) %>%
-  walk(\(table_name) {
+  select(table_name, association_type, caption) %>% 
+  pwalk(function(table_name,association_type, caption) {
     cat("\n\n")
     print(
       pluck(cni.ContMod_tables, table_name) %>% 
-        cni.mindset_effects_plot())
+        cni.mindset_effects_plot(association_type)
+    )
     cat("\n\n")
   })
 ```
+
+```{r echo=F}
+#| fig-height: 7
+#| fig-width: 10
+#| out-width: "100%"
+#| fig-cap-location: bottom
+#| fig-cap: 
+#|   !expr cni.ContMod_plot_details %>%
+#|   filter(variable_type == "personality") %>% 
+#|     pull(caption)
+
+cni.ContMod_plot_details %>%
+  filter(variable_type == "personality") %>% 
+  select(table_name, association_type, caption) %>% 
+  pwalk(function(table_name,association_type, caption) {
+    cat("\n\n")
+    print(
+      pluck(cni.ContMod_tables, table_name) %>% 
+        cni.mindset_effects_plot(association_type)
+    )
+    cat("\n\n")
+  })
+```
+
+
 
 ```{r save-plots-personalityMods, echo=F, eval=F}
 # Save plots so that they can be added to word.
@@ -1850,8 +1974,6 @@ save(cni.swbMod_tables,
 ```{r load-cni.swbMod-effects, echo = F}
 #takes a while to load
 load(here("objects/Study1/cni.swbMod_tables.Rdata"))
-
-
 ```
 
 ```{r table-cni.swb_effects}
