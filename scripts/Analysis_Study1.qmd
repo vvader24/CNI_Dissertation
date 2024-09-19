@@ -508,7 +508,7 @@ load(here("objects/Study1/all_CNI.mods_study1.Rdata"))
 ```
 
 
-### Measuring Model Complexity
+### Model Complexity
 
 The six CNI models vary in the number of items and domains of psychological measures.
 1. The Parallel Analysis computed here, identify the optimum number of dimensions that the data for every CNI type can be reduced to. The optimum number of dimensions are retained based on the comparison of eigenvalues of the actual data and those of randomly generated data sets. Dimensions are retained when their eigenvalues exceed those of the random data, ensuring that only factors accounting for more variance than would be expected by chance are retained. 
@@ -1329,7 +1329,7 @@ cni.ContMod_tbl_details %>%
   })
 ```
 
-### Overall effects
+### Overall trends
 To distinguish the most influential effects, three categories of tables are presented here:
 
 1. Strongest moderators: Effects that significantly enhance or diminish the impact of cultural normativity.
@@ -1639,7 +1639,7 @@ These plots allow to visualize the causal effects of mindset and personality var
 cni.pty_effects_plot <- function(data, association_type) {
   
   if (association_type == "linear") {
-    data_ass.type <- data %>% 
+    data_ass.type <- data %>% #cni.ContMod_tables$globeCNI.pty7
       #linear effects
       filter(term == "z_ctry_response:modtr_score")
   } else if (association_type == "quadratic") {
@@ -1655,15 +1655,6 @@ cni.pty_effects_plot <- function(data, association_type) {
     with_groups(modtr, ~ mutate(.x, avg_abs_estimate = mean(abs(estimate)))) %>% 
     mutate(
       modtr = fct_reorder(modtr, avg_abs_estimate, .desc = FALSE),
-      color = case_when(
-        modtr == "Conscientiousness" ~ "C",
-        modtr == "Honesty" ~ "H",
-        modtr == "Agreeableness" ~ "A",
-        modtr == "Resilience" ~ "R",
-        modtr == "Extraversion" ~ "E",
-        modtr == "Originality/Virtuosity" ~ "O",
-        modtr == "Disintegration" ~ "D",
-        TRUE ~ "Other"),
       sig = case_when(
         p.value < .05 & estimate > 0 ~ "Pos",
         p.value < .05 & estimate < 0 ~ "Neg",
@@ -1675,7 +1666,7 @@ cni.pty_effects_plot <- function(data, association_type) {
       asterisk = ifelse(p.value < 0.05, "*", ""),
       asterisk_position = ifelse(estimate > 0, conf.high, conf.low)
     ) %>%
-    ggplot(aes(x = modtr, y = estimate, fill = color, alpha = level)) +
+    ggplot(aes(x = modtr, y = estimate, fill = modtr, alpha = level)) +
     geom_col(position = position_dodge(width = 0.8)) +
     geom_errorbar(aes(ymin = conf.low, ymax = conf.high), 
                   position = position_dodge(width = 0.8),
@@ -1689,13 +1680,13 @@ cni.pty_effects_plot <- function(data, association_type) {
    show.legend  = FALSE,
               size = 5) +
     scale_fill_manual(values = c(
-      "C" = "#ff6f91",
-      "H" = "#377EB8",
-      "A" = "#008f7a",
-      "R" = "#e6d021",
-      "E" = "#d7573b",
-      "O" = "#c67533",
-      "D" = "#646199"
+      "Conscientiousness" = "#ff6f91",
+      "Honesty" = "#377EB8",
+      "Agreeableness" = "#008f7a",
+      "Resilience" = "#e6d021",
+      "Extraversion" = "#d7573b",
+      "Originality/Virtuosity" = "#c67533",
+      "Disintegration" = "#646199"
     )) +
     scale_alpha_manual(values = c("Individual" = 1, "Country" = 0.4)) +
     labs(x = "Moderator", y = "Estimate",
@@ -1829,7 +1820,7 @@ cni.ContMod_plot_details %>%
 ```
 
 ```{r echo=F}
-#| fig-height: 7
+#| fig-height: 12
 #| fig-width: 10
 #| out-width: "100%"
 #| fig-cap-location: bottom
@@ -1845,7 +1836,7 @@ cni.ContMod_plot_details %>%
     cat("\n\n")
     print(
       pluck(cni.ContMod_tables, table_name) %>% 
-        cni.mindset_effects_plot(association_type)
+        cni.pty_effects_plot(association_type)
     )
     cat("\n\n")
   })
@@ -1939,8 +1930,11 @@ cni.ContMod_tbl_details %>%
   })
 ```
 
-
-
+### Variable specific plots
+#### Agreeableness
+#### Assertiveness
+#### Ingroup collectivism 
+#### Resilience
 
 # RQ3.1: CNI~well-being
 
