@@ -42,10 +42,9 @@ editor: source
 #Notes: For code chunks that have `DONT-RUN` in their labels involve computations that take longer, require parallel processing or higher GPUs. These will be typically followed by code for loading objects that have been saved after running these chunks. 
 ```
 
-
-
 # Data set up
-The data, originally in the .sav format, is identified by labels for each set of items. Scale scores for individual and community (here, country) level are computed for each measure. 
+
+The data, originally in the .sav format, is identified by labels for each set of items. Scale scores for individual and community (here, country) level are computed for each measure.
 
 ```{r Libraries}
 
@@ -411,9 +410,26 @@ mutate(
   relocate(age_group, .before = age)
 ```
 
-```{r DescriptiveTable, echo = F}
-#| label: tbl-DescriptiveTable
-#| tbl-cap: "Descriptive statistics for the whole sample"
+```{r tbl-SampleStatistics, echo=F, results='asis'}
+#| tbl-cap: "Sample statistics by Country"
+#| label: tbl-SampleStatistics
+
+data2 %>% 
+  group_by(country) %>% #names()
+select(age, sex) %>% 
+  summarize(mean_age = mean(age, na.rm=TRUE),
+            percent.male = mean(sex == "male", na.rm=TRUE)*100,
+            N = n()) %>% 
+  arrange(desc(N)) %>% 
+  kable(format = "latex", 
+        col.names = c("Country", "Mean Age", "% Male", "n"), 
+        booktabs = TRUE) %>% 
+  kable_styling()
+```
+
+```{r tbl-SampleDemographics, echo = F, results='asis'}
+#| label: tbl-SampleDemographics
+#| tbl-cap: "Sample Demographics"
 
 data2 %>%
   select(sex, age_group, family_home, mother_edu, father_edu, language_admin)  %>%
@@ -450,33 +466,31 @@ group_rows("Language of Administration", 34, 51)
 
 ```
 
-
 ```{r}
 #| include: false
 #knitr::opts_chunk$set(eval = FALSE, echo = FALSE)
-``` 
+```
 
 # Analysis
 
-## RQ 1: How to quantify CNI? 
+## RQ 1: How to quantify CNI?
 
-Similar to Study 1, CNI is estimated using a Random slope Multilevel model (varying slopes and fixed intercepts) wherein items nested within person [pID] (Weston,2024). This model accounts for the nested nature of our data, where individual items are clustered within each participant. As responses are ipsatized (standardized within participant), the resulting slope estimates can be interpreted as correlation estimates.
+Similar to Study 1, CNI is estimated using a Random slope Multilevel model (varying slopes and fixed intercepts) wherein items nested within person \[pID\] (Weston,2024). This model accounts for the nested nature of our data, where individual items are clustered within each participant. As responses are ipsatized (standardized within participant), the resulting slope estimates can be interpreted as correlation estimates.
 
 For study 2, eight CNI models are computed:
 
-:::{#note-CNI-models .callout-note title="CNI Models" icon=false}
-1. Mindset CNI: consisting of all mindset items 
-2. Isms CNI
-3. Globe CNI: Original Globe items by House et al.
-4. GlobeEx CNI: House et al. + extra items
-5. Moral Foundations CNI
-6. Fanaticism CNI
-7. Social Axioms CNI
-8. Personality 6 CNI: consisting of Big 6 items
+::: {#note-CNI-models .callout-note title="CNI Models" icon="false"}
+1.  Mindset CNI: consisting of all mindset items
+2.  Isms CNI
+3.  Globe CNI: Original Globe items by House et al.
+4.  GlobeEx CNI: House et al. + extra items
+5.  Moral Foundations CNI
+6.  Fanaticism CNI
+7.  Social Axioms CNI
+8.  Personality 6 CNI: consisting of Big 6 items
 :::
 
-
-The Mindset-CNI and Personality6-CNI encompass distinct domains of psychological measurement, while the remaining CNI types can be viewed as subcomponents or specialized facets within the broader Mindset-CNI framework. Mindset-CNI therefore is the most comprehensive of all the CNI types explored here. 
+The Mindset-CNI and Personality6-CNI encompass distinct domains of psychological measurement, while the remaining CNI types can be viewed as subcomponents or specialized facets within the broader Mindset-CNI framework. Mindset-CNI therefore is the most comprehensive of all the CNI types explored here.
 
 ```{r funs.-model_CNI}
 # functions for computing CNIs
@@ -587,6 +601,17 @@ globeCNI_profiles <- compute_profiles(globeCNI_items)
 globeExCNI_profiles <- compute_profiles(globeExCNI_items)
 mfCNI_profiles <- compute_profiles(mfCNI_items)
 socAxCNI_profiles <- compute_profiles(socAxCNI_items)
+
+all_profiles <- lst(
+  mindsetCNI_profiles,
+  pty6CNI_profiles,
+  ismCNI_profiles,
+  fantcCNI_profiles,
+  globeCNI_profiles,
+  globeExCNI_profiles,
+  mfCNI_profiles,
+  socAxCNI_profiles 
+)
 ```
 
 ```{r DONT-RUN-fit-all-cni-mods, eval=FALSE, echo=TRUE}
@@ -626,13 +651,12 @@ save(mindsetCNI_mod, pty6CNI_mod, ismCNI_mod, fantcCNI_mod, globeCNI_mod, globeE
 ```
 
 ```{r load-CNImods, echo = F}
-load(here("objects/Study2/all_CNI.mods_study2.Rdata"))
+load(here::here("objects/Study2/all_CNI.mods_study2.Rdata"))
 ```
 
-
-
 ### Model Complexity
-The Eight models vary in the number of items and domains of psychological measures. 1. The Parallel Analysis computed here, identify the optimum number of dimensions that the data for every CNI type can be reduced to. The optimum number of dimensions are retained based on the comparison of eigenvalues of the actual data and those of randomly generated data sets. Dimensions are retained when their eigenvalues exceed those of the random data, ensuring that only factors accounting for more variance than would be expected by chance are retained. 2. Principal Components that explain at least 50% of variance are identified. 
+
+The Eight models vary in the number of items and domains of psychological measures. 1. The Parallel Analysis computed here, identify the optimum number of dimensions that the data for every CNI type can be reduced to. The optimum number of dimensions are retained based on the comparison of eigenvalues of the actual data and those of randomly generated data sets. Dimensions are retained when their eigenvalues exceed those of the random data, ensuring that only factors accounting for more variance than would be expected by chance are retained. 2. Principal Components that explain at least 50% of variance are identified.
 
 ```{r fun.-heterogeneity}
 # Function to calculate heterogeneity
@@ -752,11 +776,9 @@ ggplot(., aes(x = x_label, y = value, color = metric, group = metric)) +
 
 ```
 
-@fig-plot-heterogeneity indicates that as the item count increases, so does the number of identifiable dimensions, indicating higher model complexity. The Fanaticism CNI, despite having only 17 items, has been included here to maintain consistency with Study 1 and provide a basis for comparison.  Notably, the Mindset CNI exhibits a markedly higher complexity, with nearly four times as many dimensions as the other CNI models. 
-
+@fig-plot-heterogeneity indicates that as the item count increases, so does the number of identifiable dimensions, indicating higher model complexity. The Fanaticism CNI, despite having only 17 items, has been included here to maintain consistency with Study 1 and provide a basis for comparison. Notably, the Mindset CNI exhibits a markedly higher complexity, with nearly four times as many dimensions as the other CNI models.
 
 ### CNI plots
-
 
 ```{r fun.-plot_CNI, echo=FALSE}
 #Functions
@@ -896,7 +918,58 @@ walk(names(CNIplot_data), \(mod_names) {
 
 ```
 
+## Person level slopes
 
+```{r DONT-RUN-person-slopes, eval=FALSE, echo=TRUE}
+#computing person level range
+
+all_cni_models <- lst(mindsetCNI_mod, pty6CNI_mod, ismCNI_mod, fantcCNI_mod, globeCNI_mod, globeExCNI_mod, mfCNI_mod, socAxCNI_mod)
+
+compute_slopes <- function(model_obj) {
+  obj_name <- deparse(substitute(model_obj))
+  
+  # Calculate slopes
+  mod_slopes <- slopes(model_obj, variables = "z_ctry_response", by = "pID")
+
+  return(mod_slopes)
+}
+
+all_slopes <- map_dfr(all_cni_models, compute_slopes, .id = "model_name")
+
+
+```
+
+```{r save-person-slopes, echo = F, eval = F}
+save(all_slopes,  
+     file = here("objects/Study2/person-slopes-cni.Rdata"))
+```
+
+```{r load-person-slopes, echo = F}
+#takes time to load
+load(here("objects/Study2/person-slopes-cni.Rdata"))
+```
+
+```{r range-CNI, eval=F, echo=F}
+tibble(all_slopes) %>% 
+  group_by(model_name) %>% 
+   summarize(
+        low = min(estimate),
+        high = max(estimate),
+        range = high - low) %>%
+  ungroup() %>% 
+  rename(model = model_name) %>% 
+  arrange(desc(range)) %>% 
+ mutate(model = case_when(
+    model == "mindsetCNI_mod" ~ "Mindset CNI",
+    model == "ismCNI_mod" ~ "Isms CNI",
+    model == "globeCNI_mod" ~ "Globe CNI",
+    model == "globeExCNI_mod" ~ "Globe Extra CNI",
+    model == "mfCNI_mod" ~ "Moral Foundations CNI",
+    model == "fantcCNI_mod" ~ "Fanaticism CNI",
+    model == "pty6CNI_mod" ~ "Personality 6 CNI",
+    model == "socAxCNI_mod" ~ "Social Axioms CNI",
+    TRUE ~ model))
+```
 
 ## CNI Models' Summary
 
@@ -927,7 +1000,6 @@ CNImods_table2 <- modelsummary(
   add_header_above(c(" ", "Mindset" = 7, "Personality" = 1))
 ```
 
-
 ```{r save-CNItable, echo = F, eval = F}
 save(CNImods_table2,
      file = here("objects/Study2/CNImods_table2.Rdata"))
@@ -937,7 +1009,11 @@ save(CNImods_table2,
 load(here("objects/Study2/CNImods_table2.Rdata"))
 ```
 
+```{r tbl-cni-mods, results='asis', echo=F, eval=T}
+#|tbl-cap: "Mindset and Personality Cultural Normativity Index (CNI) Models"
 
+CNImods_table2
+```
 
 ## Country trends
 
@@ -959,6 +1035,31 @@ save(all_mods_ctry.trends,
 load(here("objects/Study2/CNI-ctry-trends2.Rdata"))
 ```
 
+```{r tbl-ctry.trends-allCNImods, results='asis', echo=F, eval=T}
+#| tbl-cap: "Country estimates across CNI types"
+
+group_names <- c("Mindset CNI", "Isms-Mindset CNI", "Fanaticism-Mindset CNI", "Globe-Mindset CNI", "Globe Extra-Mindset CNI", "Moral Foundations-Mindset CNI", "Social Axioms-Mindset CNI", "Personality6 CNI")
+
+all_mods_ctry.trends %>% 
+  tibble() %>% 
+  select(model, country, estimate, conf.low, conf.high, p.value) %>%
+    mutate(
+    p.value = map_chr(p.value, papaja::printp),
+    across(where(is.numeric), ~ round(., 3)),
+  ci = paste0("[", conf.low, ", ", conf.high,"]"),
+    estimate = as.character(estimate)) %>% 
+  select(country, estimate, ci, p.value) %>% 
+   kable(booktabs = T, 
+        escape = F,
+        format = "latex",
+        longtable = TRUE,
+        col.names = c("Country", "Estimate", "95\\% CI", "$\\textit{p}$")) %>% 
+  kable_styling(latex_options = c("repeat_header", "longtable")) %>% 
+   {reduce(seq_along(group_names), 
+           .init = ., 
+           ~ group_rows(.x, group_names[.y], 27*(.y-1)+1, 27*.y))} %>% 
+  column_spec(1, width = "5cm")
+```
 
 ```{r fun.-oneCoef-plot, echo = F, eval = F}
 #One coefficient plot at a time!
@@ -1035,13 +1136,12 @@ all_mods_ctry.trends %>%
   mutate(alpha = ifelse(model %in% c("pty6CNI", "mindsetCNI"), 1, 0.5),
          errorbar_size = ifelse(model %in% c("pty6CNI", "mindsetCNI"), .8, 0.4)) %>%
   ggplot(aes(x = reorder(country, estimate), y = estimate, color = model, linetype = model)) +
-  geom_errorbar(aes(ymin = conf.low, ymax = conf.high, alpha = alpha, size = errorbar_size),
-                position = position_dodge(width = 0.5), width = 0.4) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high, alpha = alpha, size = errorbar_size), position = position_dodge(width = 0.5),  width = 2.8) +
   geom_point(aes(alpha = alpha), 
              position = position_dodge(width = 0.5), 
              size = 1.7) +
   scale_y_continuous(limits = c(0, 1)) +
-  scale_color_manual(values = c("mindsetCNI" = "#0074B7", "ismCNI"  = "#6082B6", "fantcCNI"  = "#70d6ff", "globeCNI"  = "#a0c4ff", "globeExCNI"  = "#189AB4", "mfCNI"  = "#6495ED", "socAxCNI"  = "#5D3FD3", "pty6CNI" = "#ff70a6")) +
+  scale_color_manual(values = c("mindsetCNI" = "#0070BB", "ismCNI"  = "#1ca9c9", "fantcCNI"  = "#0000CD", "globeCNI"  = "#A3C1AD", "globeExCNI"  = "#008080", "mfCNI"  = "#082567", "socAxCNI"  = "#800080", "pty6CNI" = "#DE3163")) +
   scale_alpha_identity() +
   scale_size_identity() +
   scale_linetype_manual(values = c("globeCNI"  ="dashed", "globeExCNI"  ="dashed","ismCNI"  ="dashed", "fantcCNI"  ="dashed",
@@ -1057,12 +1157,7 @@ all_mods_ctry.trends %>%
   guides(linetype = "none", alpha = "none", size = "none")
 ```
 
-@fig-ctry-trends-2models-plot and @fig-ctry-trends-8models-plot display CNI estimates for all countries ranging from overall highest to lowest values. 
-
-
-
 # RQ 2: Associations between CNI and personality and mindset variables
-
 
 ```{r fun.-cni-ContMod-effects}
 # Moderators here have to continuous, this won't work for categorical moderators
@@ -1131,7 +1226,6 @@ cni.ContMod_effects <- function(cni_profiles_data, modtr_pattern) {
 }
 ```
 
-
 ```{r table_contMods, eval = F, echo=FALSE, results='asis'}
 df <- data.frame(
   `Mindset` = c(
@@ -1153,13 +1247,9 @@ table_contMods <- kable(df,
   add_header_above(c(" " = 2), bold = TRUE)
 ```
 
+Given the large *n*, especially for mindsetCNI profiles and the total number of moderators, it will be necessary to use parallel processing for this analysis. It significantly reduces computation time for multiple independent tasks. Instead of splitting the data itself, which is common in parallel processing, we split the list of individual difference variables (e.g., those matching the pattern "\^scMC.\*indv\$"). We create chunks of these variables, distributed across the number of cores - 1. The function `cni.ContMod_effects` function is applied to each variable in `var_names` simultaneously across different cores. Each core processes a different moderator variable independently.
 
-
-
-Given the large _n_, especially for mindsetCNI profiles and the total number of moderators, it will be necessary to use parallel processing for this analysis. It significantly reduces computation time for multiple independent tasks.
-Instead of splitting the data itself, which is common in parallel processing, we split the list of individual difference variables (e.g., those matching the pattern "^scMC.*indv$"). We create chunks of these variables, distributed across the number of cores - 1. The function `cni.ContMod_effects` function is applied to each variable in `var_names` simultaneously across different cores. Each core processes a different moderator variable independently.
-
-The mindsetCNI models were run on the Talapas (120GB RAM and 30 cores). For the rest of teh CNI types the hardware used involved 64GB RAM and 12 core processor, with the longest processing time for a model being 25mins (1529.822 sec elapsed). A motivated reader may choose to try to optimize this even further, in a more constrained environment. 
+The mindsetCNI models were run on the Talapas (120GB RAM and 30 cores). For the rest of teh CNI types the hardware used involved 64GB RAM and 12 core processor, with the longest processing time for a model being 25mins (1529.822 sec elapsed). A motivated reader may choose to try to optimize this even further, in a more constrained environment.
 
 ```{r parallel-processing-contMod, echo = F, eval = F}
 # Load necessary libraries
@@ -1225,7 +1315,6 @@ purrr::pmap(.l = list(.x = names(all_cni.contMod_effects), .y = all_cni.contMod_
 # Verify that objects are now in the global environment
 #map_lgl(names(files), ~exists(.x, envir = .GlobalEnv))
 ```
-
 
 ```{r fun.-specify-var-names}
 #function to specify the correct variable names for all moderators [Pty + Cog + swb]
@@ -1331,7 +1420,95 @@ specify_var_names <- \(data){
 }
 ```
 
+## Descriptives - Effect size estimates 
 
+```{r overall-ContEst-trends, results='asis', echo=FALSE}
+#| tbl-cap: "Descriptive Statistics for Continuos Moderator Effect size Estimates"
+library(e1071)
+
+list_rbind(all_cni.contMod_effects, names_to = "model") %>% 
+    mutate(level = case_when(
+      level == "Community" ~ "Country",
+      TRUE ~ level
+    ),
+    term = case_when(
+      term == "z_ctry_response:modtr_score" ~ "Linear",
+      term == "z_ctry_response:I(modtr_score^2)" ~ "Quadratic",
+      TRUE ~ term
+    )) %>% 
+  group_by(term, level) %>%
+  summarise(
+    min = min(estimate),
+    max = max(estimate),
+    range = max - min,
+    kurtosis = e1071::kurtosis(estimate), 
+    skew = e1071::skewness(estimate), 
+    n = n(),
+    mean = mean(estimate),
+    sd = sd(estimate),
+    .groups = "drop"
+  ) %>%
+  mutate(across(where(is.numeric), ~round(., 2))) %>% 
+  select(-term) %>% 
+  kable(booktabs = T, 
+        escape = F,
+        format = "html",
+        col.names = c(" ", "min", "max", "range", "kurtosis", "skew", "n", "mean", "sd")) %>%  
+   group_rows("Linear effects", 1, 2) %>% 
+  group_rows("Quadratic effects", 3, 4) 
+```
+
+```{r overall-ContEst-trends-plot, eval = T, echo = F, results='asis'}
+#| fig-cap: "Distribution of Continuos Moderator Effect size Estimates"
+#| fig-width: 8
+#| fig-height: 4
+
+plot_cont_effects <- function(plot_type) {
+   base_data <- list_rbind(all_cni.contMod_effects, names_to = "model") %>%
+    mutate(level = case_when(
+      level == "Community" ~ "Country",
+      TRUE ~ level
+    ))
+  
+  plot_data <- switch(plot_type,
+    "overall" = base_data,
+    "linear" = base_data %>% filter(term == "z_ctry_response:modtr_score"),
+    "quadratic" = base_data %>% filter(term == "z_ctry_response:I(modtr_score^2)"),
+    stop("Invalid plot type. Use 'overall', 'linear', or 'quadratic'.")
+  )
+  
+  plot <- ggplot(plot_data, aes(x = estimate, y = after_stat(density))) +
+    geom_density(color = "grey40", fill = "grey80", alpha = 0.5) +
+    geom_density(aes(fill = level, color = level), alpha = 0.5) +
+    scale_fill_manual(values = c("Individual" = "cornflowerblue", "Country" = "pink")) +
+    scale_color_manual(values = c("Individual" = "cornflowerblue", "Country" = "pink")) +
+    scale_x_continuous(limits = c(-0.85, 1)) +
+    scale_y_continuous(limits = c(0, 280))+
+    theme_bw() +
+   labs(x = "Effect size Estimates", y = "Density", fill = "Level", color = "Level")
+  
+  return(plot)
+}
+
+plot_cont_effects("overall") + 
+plot_cont_effects("linear") +
+plot_cont_effects("quadratic") + 
+  plot_layout(
+    axis_titles = "collect",
+    guides = "collect"
+  )  +
+  plot_annotation(
+    tag_levels = list(c("Overall", "Linear", "Quadratic"))
+  ) &
+  theme(
+    plot.tag.position = c("top"),
+    text = element_text(family = "serif", size = 12),legend.position = "bottom")
+```
+
+
+
+
+## Tables
 ```{r cni.contMod-tbl-details}
 
 CNIplot_data_details = tibble(
@@ -1395,8 +1572,6 @@ cni.contMod_tbl_details <- tibble(
   select(object_names, caption, CNI_type)
 ```
 
-## Tables
-
 ### Linear and Quadratic effects (CNI)
 
 ```{r fun.-cni.ContMod-effects-tbl}
@@ -1441,7 +1616,6 @@ df2 %>%
 }
 ```
 
-
 ```{r cni.MindsetMod-effects-tbl, results='asis'}
 #| cache: true
 cni.contMod_tbl_details %>% 
@@ -1457,7 +1631,7 @@ cni.contMod_tbl_details %>%
 ```
 
 ```{r cni.PersonalityMod-effects-tbl, results='asis'}
-
+#| cache: true
 cni.contMod_tbl_details %>% 
   filter(CNI_type == "Personality") %>%
   pwalk(function(object_names, caption, ...) {
@@ -1470,9 +1644,74 @@ cni.contMod_tbl_details %>%
   })
 ```
 
-
-
 ### Strongest and Weakest effects (CNI)
+
+```{r eval=FALSE, echo=FALSE, include=FALSE}
+quick_strong.weak_effects_table <- function(data, title) {
+  
+  base_data <- data %>%
+    specify_var_names() %>%
+    filter(round(p.value, 3) < 0.05) %>%
+    arrange(desc(abs(estimate))) %>%
+    mutate(
+      term_type = case_when(
+        term == "z_ctry_response:modtr_score" ~ "Linear",
+        term == "z_ctry_response:I(modtr_score^2)" ~ "Quadratic",
+        TRUE ~ NA_character_
+      )
+    )
+  
+  # Select 15 highest and 15 lowest estimates
+  highest_15 <- base_data %>% head(15)
+  lowest_15 <- base_data %>% tail(15) %>% 
+  arrange(abs(estimate))
+  
+  # Combine the data using bind_rows with .id argument
+  all_data <- bind_rows(list("Highest 15 Estimates" = highest_15, 
+                             "Lowest 15 Estimates" = lowest_15), 
+                        .id = "group")
+  
+  # Prepare data for table
+  df2 <- all_data %>%
+    select(-relation) %>%
+    mutate(
+      p.value = map_chr(p.value, papaja::printp),
+      across(where(is.numeric), ~ round(., 3)),
+      ci = paste0("[", conf.low, ", ", conf.high,"]"),
+      term = ifelse(str_detect(term, "2"), "(b\\textsuperscript{2})", "(b)"),
+      estimate = as.character(estimate),
+    modtr = ifelse(level == "Country", 
+                   paste0(modtr, footnote_marker_symbol(1, "latex")),
+                   paste0(modtr, footnote_marker_symbol(2, "latex")))) %>%
+    select(group, modtr, term, estimate, ci, p.value)%>%
+    arrange(group) %>% 
+    select(-group)
+  
+  # Create and return the table
+  df2 %>%
+    kable(booktabs = T,
+          escape = F,
+          format = "latex",
+          longtable = TRUE,
+          col.names = c("Moderator", "Term", "Est", "95\\% CI", "$\\textit{p}$" ),
+          caption = title) %>%
+    group_rows("Strongest 15 Estimates", 1, 15, underline = T, escape = F) %>%
+    group_rows("Weakest 15 Estimates", 16, 30, escape = F, underline = T) %>%
+    kable_styling(latex_options = c("repeat_header", "longtable")) %>% 
+    column_spec(1, width = "6.4cm") %>% 
+      footnote(symbol = c("Country level", "Individual level"),
+           symbol_title = "",
+           general = "(b) = Linear model, ($b\\textsuperscript{2}$) = Quadratic",
+           general_title = "Note:",
+           title_format = "italic", 
+           fixed_small_size = TRUE,
+           footnote_as_chunk = FALSE,
+           threeparttable = TRUE,
+           escape = FALSE)
+}
+
+#quick_strong.weak_effects_table(all_cni.contMod_effects$pty6CNI.pty_effects, pull(cni.contMod_tbl_details, "caption2")[16])
+```
 
 ```{r}
 strong.weak_effects_table <- function(data, title) {
@@ -1538,72 +1777,7 @@ strong.weak_effects_table <- function(data, title) {
            escape = FALSE)
 }
 
-quick_strong.weak_effects_table <- function(data, title) {
-  
-  base_data <- data %>%
-    specify_var_names() %>%
-    filter(round(p.value, 3) < 0.05) %>%
-    arrange(desc(abs(estimate))) %>%
-    mutate(
-      term_type = case_when(
-        term == "z_ctry_response:modtr_score" ~ "Linear",
-        term == "z_ctry_response:I(modtr_score^2)" ~ "Quadratic",
-        TRUE ~ NA_character_
-      )
-    )
-  
-  # Select 15 highest and 15 lowest estimates
-  highest_15 <- base_data %>% head(15)
-  lowest_15 <- base_data %>% tail(15) %>% 
-  arrange(abs(estimate))
-  
-  # Combine the data using bind_rows with .id argument
-  all_data <- bind_rows(list("Highest 15 Estimates" = highest_15, 
-                             "Lowest 15 Estimates" = lowest_15), 
-                        .id = "group")
-  
-  # Prepare data for table
-  df2 <- all_data %>%
-    select(-relation) %>%
-    mutate(
-      p.value = map_chr(p.value, papaja::printp),
-      across(where(is.numeric), ~ round(., 3)),
-      ci = paste0("[", conf.low, ", ", conf.high,"]"),
-      term = ifelse(str_detect(term, "2"), "(b\\textsuperscript{2})", "(b)"),
-      estimate = as.character(estimate),
-    modtr = ifelse(level == "Country", 
-                   paste0(modtr, footnote_marker_symbol(1, "latex")),
-                   paste0(modtr, footnote_marker_symbol(2, "latex")))) %>%
-    select(group, modtr, term, estimate, ci, p.value)%>%
-    arrange(group) %>% 
-    select(-group)
-  
-  # Create and return the table
-  df2 %>%
-    kable(booktabs = T,
-          escape = F,
-          format = "html",
-          longtable = TRUE,
-          col.names = c("Moderator", "Term", "Est", "95\\% CI", "$\\textit{p}$" ),
-          caption = title) %>%
-    group_rows("Strongest 15 Estimates", 1, 15, underline = T, escape = F) %>%
-    group_rows("Weakest 15 Estimates", 16, 30, escape = F, underline = T) %>%
-    kable_styling(latex_options = c("repeat_header", "longtable")) %>% 
-    column_spec(1, width = "6.4cm") %>% 
-      footnote(symbol = c("Country level", "Individual level"),
-           symbol_title = "",
-           general = "(b) = Linear model, ($b\\textsuperscript{2}$) = Quadratic",
-           general_title = "Note:",
-           title_format = "italic", 
-           fixed_small_size = TRUE,
-           footnote_as_chunk = FALSE,
-           threeparttable = TRUE,
-           escape = FALSE)
-}
-
-quick_strong.weak_effects_table(all_cni.contMod_effects$mfCNI.mindset_effects, pull(cni.contMod_tbl_details, "caption2")[11])
-
-cni.contMod_tbl_details <- cni.contMod_tbl_details %>% 
+cni.contMod_tbl_details <- cni.contMod_tbl_details %>%
     mutate(caption2 = paste0("Strongest and Weakest ", caption))
 ```
 
@@ -1621,6 +1795,77 @@ cni.contMod_tbl_details %>%
   })
 ```
 
+### Five Strongest moderators
+
+```{r five-strongest-moderators}
+cni_types <- unique(sub("CNI.*", "CNI", names(all_cni.contMod_effects)))
+
+# Function to combine dataframes for a given CNI type
+#data_list = all_cni.contMod_effects
+strongest5_contMods <- function(cni_type, data_list) {
+  df_names <- grep(paste0("^", cni_type),
+                   names(data_list), value = TRUE)
+  
+  bind_rows(data_list[df_names], .id = "modtr_type") %>%
+    arrange(desc(abs(estimate))) %>%
+    slice_head(n = 5)
+}
+
+# Apply the function to each CNI type
+strongest5_contMods_CNI <- map_dfr(cni_types, ~strongest5_contMods(.x, all_cni.contMod_effects)) %>%
+  specify_var_names() %>% 
+  with_groups(modtr, ~ mutate(.x, avg_abs_estimate = mean(abs(estimate)))) %>% 
+  mutate(modtr = fct_reorder(modtr, avg_abs_estimate, .desc = FALSE)) %>% 
+  select(-term, -variable)  %>% 
+  mutate(cni_type = str_extract(modtr_type, "^[^.]+")) %>% 
+  mutate(label_color = case_when(
+    str_detect(modtr_type, "\\.pty_effects$") ~ "#c76e00",
+    str_detect(modtr_type, "\\.mindset_effects$") ~ "#008000",
+    TRUE ~ "black"
+  ))
+
+modtr_order <- strongest5_contMods_CNI %>%
+  group_by(modtr) %>%
+  summarize(mean_estimate = mean(estimate)) %>%
+  arrange(mean_estimate) %>%
+  pull(modtr)
+
+
+strongest5_contMods_CNI <- strongest5_contMods_CNI %>%
+  mutate(modtr = factor(modtr, levels = modtr_order))
+
+
+color_mapping <- strongest5_contMods_CNI %>%
+  select(modtr, label_color) %>%
+  distinct() %>%
+  deframe()
+```
+
+```{r results='asis'}
+#| fig-height: 7
+#| fig-width: 10
+#| out-width: "100%"
+#| cap-location: bottom
+#| fig-cap: "Five Strongest Estimates across CNI types"
+
+strongest5_contMods_CNI %>% 
+ ggplot(aes(x = modtr, y = estimate, color = cni_type, group = interaction(modtr))) +
+   geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0, alpha = 0.3, size = 3.8, position = position_dodge(width = 0.4), linetype = "solid")+
+   geom_point() + 
+  scale_color_manual(values = c("mindsetCNI" = "#0074B7", "ismCNI"  = "#6082B6", "fantcCNI"  = "#70d6ff", "globeCNI"  = "#a0c4ff", "globeExCNI"  = "#189AB4", "mfCNI"  = "#6495ED", "socAxCNI"  = "#5D3FD3", "pty6CNI" = "#ff70a6")) +
+   labs(x = NULL, 
+        y = "CNI estimate",
+        color = "CNI Types",  
+        caption = "<i>Note:</i> <span style='color:#c76e00;'>Personality </span> and <span style='color:#008000;'>Mindset </span> moderators on Y axis") +
+   coord_flip() +
+   theme_bw() +
+   theme(plot.title.position = "plot", 
+         text = element_text(family = "serif", size = 12),
+      axis.text.y = element_markdown(
+      color = color_mapping[levels(strongest5_contMods_CNI$modtr)],
+      size = 12),
+      plot.caption = element_markdown(hjust =1.74, size = 8.3) )
+```
 
 ```{r}
 #| include: false
@@ -1628,10 +1873,8 @@ cni.contMod_tbl_details %>%
 ```
 
 ### Overall trends
-Similar to study 1, three categories of tables are presented here:
-1. Strongest moderators: Effects that significantly enhance or diminish the impact of cultural normativity.
-2. Weakest moderators: Effects that, while statistically significant, have minimal influence on cultural normativity.
-3. Non-significant effects: Factors that show no statistically significant moderation of cultural normativity.
+
+Similar to study 1, three categories of tables are presented here: 1. Strongest moderators: Effects that significantly enhance or diminish the impact of cultural normativity. 2. Weakest moderators: Effects that, while statistically significant, have minimal influence on cultural normativity. 3. Non-significant effects: Factors that show no statistically significant moderation of cultural normativity.
 
 ```{r fun.-overall-effects-table}
 overall_table <- function(table_type, title) {
@@ -1685,7 +1928,7 @@ final_table <- table %>%
 final_table %>% 
   kable(booktabs = T, 
         escape = F,
-        format = "latex",
+        format = "html",
         col.names = c("CNI type", "Moderator", "Term", "Est", "95\\% CI", "$\\textit{p}$"),
         caption = title,
         longtable = T) %>% 
@@ -1720,7 +1963,7 @@ overall_table_details %>%
 
 ### Strongest and Weakest effects (CNI)
 
-Given that there are `r (length(str_subset(names(data2), "\\.(indv|comm)$"))-1)*2` (individual level scale scores = `r (length(str_subset(names(data2), "\\.(indv)$")))-1`, country level scale scores = `r (length(str_subset(names(data2), "\\.(comm)$")))-1` and their linear and quadratic associations with CNI types) effect sizes to evaluate in total for each CNI type, it was necessary to identify a starting point. In order to assess the continuous moderator effects for each of the CNI types, the highest 15 and lowest 15 associations (across linear and quadratic) were considered. 
+Given that there are `r (length(str_subset(names(data2), "\\.(indv|comm)$"))-1)*2` (individual level scale scores = `r (length(str_subset(names(data2), "\\.(indv)$")))-1`, country level scale scores = `r (length(str_subset(names(data2), "\\.(comm)$")))-1` and their linear and quadratic associations with CNI types) effect sizes to evaluate in total for each CNI type, it was necessary to identify a starting point. In order to assess the continuous moderator effects for each of the CNI types, the highest 15 and lowest 15 associations (across linear and quadratic) were considered.
 
 ```{r fun.plot-high-low-effects}
 plot_high.low_mindset_effects <- function(data) {
@@ -1948,7 +2191,6 @@ cni.contMod_tbl_details %>%
   })
 ```
 
-
 ### Linear and Quadratic effects
 
 ```{r fun.-cni.ContMod-effects-plot}
@@ -2002,7 +2244,7 @@ processed_data <-  data_ass.type %>%
   labs(x = "Moderator", y = "Estimate",
        fill = "Trait", alpha = "Level") 
 
-     get_color_mapping <- function(data) {
+    get_color_mapping <- function(data) {
   data %>%
     arrange(desc(avg_abs_estimate)) %>%
     distinct(modtr, .keep_all = TRUE) %>%
@@ -2179,7 +2421,6 @@ cni.contMod_plot_details <-
 
 ```
 
-
 ```{r walk-cni.mindsetContMod-effects-plot, results='asis', echo=FALSE}
 #| cache: true
 #| fig-height: 14
@@ -2206,8 +2447,6 @@ cni.contMod_plot_details %>%
     cat("\n\n")
   })
 ```
-
-
 
 ```{r walk-cni.ptyContMod-effects-plot, results='asis', echo=FALSE}
 #| cache: true
@@ -2236,13 +2475,21 @@ cni.contMod_plot_details %>%
   })
 ```
 
+# RQ 3: To what extent is CNI related to person characteristics?
 
+The primary goal is to assess whether and how specific categorical moderators (modtr_cat) influence the alignment between individual psychological responses (z_response) and country-level psychological profiles (z_ctry_response). The focus is on examining whether the relationship between `z_response` and `z_ctry_response` (i.e., the slope of `z_ctry_response`) changes depending on the level of `modtr_score`. By including the interaction term `z_ctry_response * modtr_score` in the model, the effect of `z_ctry_response` on `z_response` is allowed to vary across different levels of `modtr_score`.
 
+By modeling this relationship, the aim is to:
 
+-   Determine if the degree of cultural normativity varies across levels of the moderator.
+-   Understand the interaction between individual and cultural profiles in the context of the moderator.
+-   Identify significant factors that contribute to variations in CNI.
 
+*Model fit* is assessed using `car::Anova` wherein the significance of the interaction and the overall model is of interest. Type III sum of squares (focus is on the extent to which the moderator interaction explains variability in the model, above and beyond other main and random effects; Type III is invariant to order effects unlike Type I and accounts for interaction effects unlike Type II). The significant contrasts for each model are retained.
 
-# RQ 3: To what extent is CNI related to person characteristics? 
+*Marginal effects* or *trends* (slopes) were estimated, adjusted for other variables in the model. This is especially useful when dealing with interactions where direct interpretation of coefficients can be challenging. The `emtrends()` function calculates the estimated slopes of `z_ctry_response` at each level of `modtr_score`, adjusting for other variables in the model (here,`overall.M`) and accounting for the random effects. By specifying `pairwise ~ modtr_score`, pairwise comparisons of these slopes between different levels of `modtr_score` are computed., The `adjust = "holm"` argument ensures that the p-values for these pairwise comparisons are adjusted to reduce the chance of Type I errors due to multiple testing (multiple comparisons adjustment).
 
+## Tables - All differences
 
 ```{r table_catMods, echo=FALSE, eval=FALSE}
 df <- data.frame(
@@ -2257,8 +2504,7 @@ table_catMods <- kable(df, format = "latex", align = c("l", "l")) %>%
   add_header_above(c(" " = 2), bold = TRUE)
 ```
 
-
-Mindset CNI being the most complex model, it required a different approach for running parallel processing. Here the models are computed first followed by assesing the contrasts between different groups. 
+Mindset CNI being the most complex model, it required a different approach for running parallel processing. Here the models are computed first followed by assesing the contrasts between different groups.
 
 ```{r mindsetCNI.catMod-models}
 cni.CatMod_effects_models <- function(cni_profiles_data, modtr_cat) {
@@ -2303,7 +2549,7 @@ tic()
 
 # Parallel execution using furrr
   mindsetCNI.CatMod_effects_models<- future_map(var_names, function(var) {
-    result <- cni.CatMod_effects_models(cogCNI_profiles, var)
+    result <- cni.CatMod_effects_models(mindsetCNI_profiles, var)
     return(result)
   }, .progress = TRUE) %>% 
     set_names(var_names)
@@ -2324,7 +2570,7 @@ toc()
   #object_size(globeExCNI.cat_effects$father_edu)
 ```
 
-```{r save-cog.cni.CatMod-models, echo = F, eval = F}
+```{r save-mindset.cni.CatMod-models, echo = F, eval = F}
 #checklist 
 #1. change name of the object  
 #2. DANGER: change name of the object being saved
@@ -2337,7 +2583,11 @@ save(mindsetCNI.CatMod_effects_models,
 load("~/Desktop/CNI_Dissertation/objects/Study2/mindsetCNI.CatMod_effects_models.Rdata")
 ```
 
-```{r mindsetCNI.catMod-trends}
+
+The focus here is to understand how the relationship between `z_ctry_response` and `z_response` changes across different levels of `modtr_score`. Slopes of z_response with respect to z_ctry_response at different values of modtr_score are computed. `emtrends()` from the `emmeans` package is used to compute estimated marginal means (EMMs) of trends. The p-values for multiple comparisons are adjusted using Holm's method. The limit for the parametric bootstrap Kenward-Roger method is increased here.
+
+```{r mindsetCNI.catMod-trends, message=FALSE, warning=FALSE, eval=FALSE, echo=TRUE}
+#emm_options(pbkrtest.limit = 1623160)
 cni.CatMod_effects_trends <- \(cni.modtr_model) {
 
    #2. contrasts
@@ -2351,7 +2601,15 @@ cni.CatMod_effects_trends <- \(cni.modtr_model) {
 mindsetCNI.CatMod_effects_trends <- map(mindsetCNI.CatMod_effects_models, cni.CatMod_effects_trends)
 ```
 
-```{r fun.-sig_groups1, echo = FALSE}
+```{r save-mindsetCNI.catMod-trends, eval=FALSE, echo=FALSE}
+save(mindsetCNI.CatMod_effects_trends, file = here("objects/Study2/mindsetCNI.CatMod_effects_trends.Rdata"))
+```
+
+```{r load-mindsetCNI.catMod-trends, echo = F}
+load("~/Desktop/CNI_Dissertation/objects/Study2/mindsetCNI.CatMod_effects_trends.Rdata")
+```
+
+```{r fun.-sig_groups1-contrasts, echo = FALSE}
 sig_groups1 <- \(df, var, cni_name, sig.only = FALSE) {
 
   # Extract the part of cni_name before the first period
@@ -2366,12 +2624,11 @@ sig_groups1 <- \(df, var, cni_name, sig.only = FALSE) {
       as.data.frame()
  
   
-  cap <-paste0("Differences in ", cni_name, " by ", var_name_cap, ".")
-  
-  if (sig.only) {
+if (sig.only) {
     trends <- filter(trends, p.value < .05)
-     cap <-paste0("Significant differences in ", cni_name, " by ", var_name_cap, ".")
-  
+    cap <- paste0("Significant differences in ", cni_name_cap, " by ", var_name_cap, ".")
+  } else {
+    cap <- paste0("Differences in ", cni_name_cap , " by ", var_name_cap, ".")
   }
   
   if (nrow(trends) > 0) {
@@ -2392,25 +2649,25 @@ sig_groups1 <- \(df, var, cni_name, sig.only = FALSE) {
 }
 ```
 
-```{r mindsetCNI.catMod-trends-plots, results='asis'}
+```{r mindsetCNI.catMod-trends-tables, results='asis'}
 # Moderator names
-var_names <- c( "age_group", "mother_edu", "father_edu", "family_home") #"sex",
+cat_mod_names <- c("family_home",  "mother_edu", "father_edu", "age_group") #"sex",
 
 # Print all the tables
-walk(var_names, function(var) {
+walk(cat_mod_names, function(var) {
   cat("\n\n")
   print(sig_groups1(mindsetCNI.CatMod_effects_trends, var, "Mindset CNI"))
   cat("\n\n")
 })
 ```
 
+For degrees of freedom, Kenward-Roger approximation was preferred, over Satterthwaite's approximation, as it provides adjusted degrees of freedom and adjusts the covariance matrix of the fixed effects, aiming for more accurate Type I error rates, especially in small samples/complex models.  
 
-Here one function computes the model, assesses the model fit using the Type III sum of squares (Type III because the focus is on to what extent does the moderator interaction explain variability in the model, above and beyond other main and random effects). The significant contrasts for each model are retained. 
 
 ```{r fun.-cni-CatMod-effects, echo= T, eval=F}
 #Explanation for function below
       #[which CNI-type]:
-  #cni_profiles_data <- cogCNI_profiles1 [self.ctry_profiles,overallM_profiles] 
+  #cni_profiles_data <- mindsetCNI_profiles1 [self.ctry_profiles,overallM_profiles] 
       #[which moderator]:
   # "sex","family_home","mother_edu","father_edu","age_group"    
   #Model: CNI <- Categorical moderator
@@ -2419,6 +2676,8 @@ Here one function computes the model, assesses the model fit using the Type III 
 #choose(9, 2) #check for number of contrasts
 
 #This version of the function is necessary for parallel processing! Moderators are varied. 
+
+cni.CatMod_effects(mindsetCNI_profiles, "family_home")
 
 cni.CatMod_effects <- function(cni_profiles_data, modtr_cat) {
   
@@ -2429,7 +2688,7 @@ cni.CatMod_effects <- function(cni_profiles_data, modtr_cat) {
   #right data format
   cni.modtr_data <- data2 %>% 
     #select moderator scales individual level (pID) scores 
-    select(pID, modtr_cat) %>% 
+    select(pID, all_of(modtr_cat)) %>% 
     pivot_longer(-pID, 
                  names_to = "modtr", #moderator name
                  values_to = "modtr_score") %>% # moderator score
@@ -2442,12 +2701,13 @@ cni.CatMod_effects <- function(cni_profiles_data, modtr_cat) {
       
       #save results
   #2. model fit   
+  #Deafult = Kenward-Roger Approximation
    model_fit <- Anova(cni.modtr_model, type = "III", test.statistic = "F") %>%  tidy()
    #3. contrasts
-   trends <- emtrends(cni.modtr_model, pairwise ~ modtr_score, 
-         var = "z_ctry_response", 
-         adjust = "holm") 
-      
+   trends <- emtrends(cni.modtr_model, pairwise ~ modtr_score,
+         var = "z_ctry_response",
+         adjust = "holm")
+
   
   return(lst(model_fit,trends))
 }
@@ -2506,6 +2766,8 @@ save(pty6CNI.cat_effects,
 ```
 
 ```{r load-cni.CatMod-models, echo=F, results='hide'}
+options(scipen = 999)
+
 # Define a vector of file names
 cni.catMod_object_names <- paste0(c(
   "ismCNI",
@@ -2532,7 +2794,367 @@ purrr::pmap(.l = list(.x = names(all_cni.catMod_effects), .y = all_cni.catMod_ef
 
 
 
-```{r fun.-sig_groups2, echo = FALSE}
+### Model fit
+
+These 
+
+```{r anova-cni.catMod_effects}
+cat_var_names <- c("age_group" , "mother_edu","father_edu",
+                 "family_home")#"sex", 
+
+cat_fit_tbl <- \(cat_var){
+  
+  title_cap <- function(s){
+   s %>%
+    str_replace_all("_", " ") %>%
+    str_to_sentence() %>%
+    str_replace("edu", "Education")}
+ 
+  
+  map_dfr(all_cni.catMod_effects, 
+        pluck, cat_var, "model_fit", 
+        .id = "CNI_type") %>% 
+    filter(!str_detect(tolower(term), "intercept")) %>% #distinct(term)
+  mutate(term = case_when(
+          term == "z_ctry_response" ~ "CNI",
+        term == "modtr_score" ~ "Predictor",
+        term == "overall.M" ~ "Overall Mean",
+        grepl(":", term, fixed = TRUE) ~ "Interaction",
+        TRUE ~ term
+    ),
+    stars = case_when(
+    p.value < .001 ~ "***",
+    p.value < .01 ~ "**",
+    p.value < .05 ~ "*",
+    TRUE ~ ""),
+    statistic = sprintf("F(%d, %.0f) = %.2f%s", 
+           df, Df.res, statistic, stars),
+     CNI_type = case_when(
+            CNI_type == "ismCNI.cat_effects" ~ "Isms CNI",
+            CNI_type == "globeCNI.cat_effects" ~ "Globe CNI",
+            CNI_type == "globeExCNI.cat_effects" ~ "Globe Extra CNI",
+            CNI_type == "mfCNI.cat_effects" ~ "Moral Foundations CNI",
+            CNI_type == "fantcCNI.cat_effects" ~ "Fanaticism CNI",
+            CNI_type == "pty6CNI.cat_effects" ~ "Personality 6 CNI",
+            CNI_type == "socAxCNI.cat_effects" ~ "Social Axioms CNI",
+            TRUE ~ CNI_type)) %>% 
+    select(CNI_type, term, statistic) %>% 
+   pivot_wider(names_from = term, values_from = statistic) %>% 
+     kable(booktabs = T,
+           longtable = T,
+           format = "latex",
+        caption = paste0("ANOVA summary of ",  title_cap({{cat_var}}), " individual characteristic models")) %>% 
+  kable_styling() %>% 
+  column_spec(2, width = "3cm") %>% 
+  column_spec(3, width = "3cm") %>% 
+  column_spec(4, width = "3cm") %>% 
+  column_spec(5, width = "3cm")
+}
+```
+
+```{r walk-anova-cni.catMod_effects, results = 'asis', eval=TRUE, echo=FALSE}
+#Define the categorical moderators
+cat_mod_names <- c("family_home", "mother_edu", "father_edu", "age_group")
+
+# Use walk to iterate over the categorical moderators
+walk(cat_mod_names, function(var) {
+  result <- cat_fit_tbl(var)
+  print(result)
+  cat("\n\n")  # Add some space between tables
+})
+```
+
+For making model comparisons. 
+Issues with running model fit for Mindset-CNI were encountered. The data was too large for `car::Anova` with `statistic = "F"` (tried with 23 cores and 120 GB RAM on Talapas); code kept crashing. As an alternative, chi square test comparing the H0(null model; no moderator) and H1(alternative model; with moderator) was computed for every moderator. `car::Anova` with `statistic = "Chisq"` is used to facilitate model comparison across all CNI models.
+
+```{r cni.CatMod_AnovaChisq}
+cni.CatMod_AnovaChisq <- function(cni_profiles_data, modtr_cat) {
+  
+  #consists of self,ctry and overall.M profiles
+  joined_profiles <- 
+    pluck(all_profiles, cni_profiles_data, "self.ctry_profiles") %>%
+  left_join(pluck(all_profiles , cni_profiles_data, "overallM_profiles"), by = "item")
+
+  #right data format
+  cni.modtr_data <- data2 %>% 
+    #select moderator scales individual level (pID) scores 
+    select(pID, all_of(modtr_cat)) %>% 
+    pivot_longer(-pID, 
+                 names_to = "modtr", #moderator name
+                 values_to = "modtr_score") %>% # moderator score
+    full_join(joined_profiles, by = c("pID"), relationship = "many-to-many")
+  
+    #1. CNI <- moderator
+  cni.modtr_model <- cni.modtr_data %>%
+      #cni ~ mod [linear]
+      lmer(z_response ~ z_ctry_response*modtr_score + overall.M + (-1 + z_ctry_response | pID), data = .)
+      
+      #save results
+  #2. model fit   
+  #Deafult = Kenward-Roger Approximation
+   model_fit <- Anova(cni.modtr_model, type = "III", test.statistic = "Chisq") %>%  broom::tidy()
+   
+   return(model_fit)
+}
+
+#cni.CatMod_AnovaChisq("pty6CNI_profiles", "sex")
+
+cni.CatMod_AnovaChisq_details <- expand_grid(
+  cni = names(all_profiles), 
+  modtr = c("sex", "age_group" , "mother_edu","father_edu",
+                 "family_home"))
+```
+
+
+```{r DONT-RUN-cni.CatMod_AnovaChisq, echo = F, eval=FALSE}
+#Hardware specifications:
+# 16GB RAM, 8 cores
+
+# Load libraries
+library(furrr);library(purrr);library(tictoc);library(car); library(broom)
+
+# Set up cores
+  plan(multisession, workers = availableCores() - 1)
+
+# Run the analysis
+tic()
+cni.cat_AnovaChisq_fit <- future_pmap(
+  cni.CatMod_AnovaChisq_details,
+  function(cni, modtr) {
+    result <- cni.CatMod_AnovaChisq(cni, modtr)
+    return(result)
+  },
+  .progress = TRUE
+) %>% 
+  set_names(with(cni.CatMod_AnovaChisq_details, paste(cni, modtr, sep = "_")))
+
+# Reset to sequential processing
+plan(sequential)
+toc()
+
+cni.cat_AnovaChisq_fit 
+```
+
+```{r save-cni.CatMod_AnovaChisq, echo = F, eval = F}
+save(cni.cat_AnovaChisq_fit,
+     file = here("objects/Study2/cni.cat_AnovaChisq_fit.Rdata"))
+```
+
+```{r load-cni.CatMod_AnovaChisq, echo = F, eval = T}
+load("~/Desktop/CNI_Dissertation/objects/Study2/cni.cat_AnovaChisq_fit.Rdata")
+```
+
+
+```{r cat_fit.chisq_tbl}
+cat_fit.chisq_tbl <- function(cat_var) {
+  
+  title_cap <- function(s) {
+    s %>%
+      str_replace_all("_", " ") %>%
+      str_to_sentence() %>%
+      str_replace("edu", "Education")
+  }
+ 
+bind_rows(cni.cat_AnovaChisq_fit, .id = "CNI_type") %>%
+  separate(CNI_type, into = c("CNI_type", "profiles", "moderator"), sep = "_", extra = "merge") %>%
+  filter(moderator == cat_var) %>% 
+    select(-profiles, -moderator)%>% 
+    filter(!str_detect(tolower(term), "intercept")) %>%
+    mutate(
+      term = case_when(
+        term == "z_ctry_response" ~ "CNI",
+        term == "modtr_score" ~ "Predictor",
+        term == "overall.M" ~ "Overall Mean",
+        grepl(":", term, fixed = TRUE) ~ "Interaction",
+        TRUE ~ term),
+      stars = case_when(
+        p.value < .001 ~ "***",
+        p.value < .01 ~ "**",
+        p.value < .05 ~ "*",
+        TRUE ~ ""
+      ),
+     statistic = sprintf("χ²(%d) = %.2f%s", 
+                          df, statistic, stars),
+      CNI_type = case_when(
+        CNI_type == "mindsetCNI" ~ "Mindset CNI",
+        CNI_type == "ismCNI" ~ "Isms-Mindset CNI",
+        CNI_type == "fantcCNI" ~ "Fanaticism-Mindset CNI",
+        CNI_type == "globeCNI" ~ "Globe-Mindset CNI",
+        CNI_type == "globeExCNI" ~ "Globe Extra-Mindset CNI",
+        CNI_type == "mfCNI" ~ "Moral Foundations-Mindset CNI",
+        CNI_type == "socAxCNI" ~ "Social Axioms-Mindset CNI",
+        CNI_type == "pty6CNI" ~ "Personality 6 CNI",
+        TRUE ~ CNI_type
+      )) %>% 
+    select(CNI_type, term, statistic) %>% 
+    pivot_wider(names_from = term, values_from = statistic) %>% 
+  kable(booktabs = T,
+           longtable = T,
+           format = "latex",
+        caption = paste0("ANOVA summary of ",  title_cap({{cat_var}}), " individual characteristic models")) %>% 
+  kable_styling() %>% 
+  column_spec(2, width = "3cm") %>% 
+  column_spec(3, width = "3cm") %>% 
+  column_spec(4, width = "3cm") %>% 
+  column_spec(5, width = "3cm")}
+```
+
+```{r walk-cat_fit.chisq_tbl, results = 'asis', eval=TRUE, echo=FALSE}
+cat_var_names <- c("age_group" , "mother_edu","father_edu",
+                 "family_home")#"sex",
+# Use walk to iterate over the categorical moderators
+walk(cat_var_names, function(var) {
+  result <- cat_fit.chisq_tbl(var)
+  print(result)
+  cat("\n\n")  # Add some space between tables
+})
+```
+### Marginal effects
+
+#### Estimated slopes (trends) 
+
+```{r emtrends-cni.catMod_effects}
+cat_emtrends_tbl <- \(cat_var){
+  title_cap <- function(s){
+   s %>%
+    str_replace_all("_", " ") %>%
+    str_to_sentence() %>%
+    str_replace("edu", "Education")}
+  group_names <- c("Mindset CNI", "Isms-Mindset CNI", "Fanaticism-Mindset CNI", "Globe-Mindset CNI", "Globe Extra-Mindset CNI", "Moral Foundations-Mindset CNI", "Social Axioms-Mindset CNI", "Personality6 CNI")
+  
+ full_df <- 
+   rbind(
+ mindsetCNI.CatMod_effects_trends %>% 
+       pluck(cat_var, "emtrends") %>% 
+      as_tibble() %>% 
+      mutate(CNI_type = "mindsetCNI.cat_effects", 
+             .before = modtr_score), 
+    map_df(all_cni.catMod_effects, 
+      ~as_tibble(summary(pluck(.x, cat_var, "trends", "emtrends"))),
+                 .id = "CNI_type"))  
+    
+  full_df %>%  
+      mutate(CNI_type = case_when(
+        CNI_type == "mindsetCNI.cat_effects" ~ "Mindset CNI",
+    CNI_type == "ismCNI.cat_effects" ~ "Isms-Mindset CNI",
+    CNI_type == "globeCNI.cat_effects" ~ "Globe-Mindset CNI",
+    CNI_type == "globeExCNI.cat_effects" ~ "Globe Extra-Mindset CNI",
+    CNI_type == "fantcCNI.cat_effects" ~ "Fanaticism-Mindset CNI",
+    CNI_type == "mfCNI.cat_effects" ~ "Moral Foundations-Mindset CNI",
+    CNI_type == "socAxCNI.cat_effects" ~ "Social Axioms-Mindset CNI",
+    CNI_type == "pty6CNI.cat_effects" ~ "Personality6 CNI",
+    TRUE ~ CNI_type)) %>% 
+     select(-CNI_type, -df) %>% 
+    mutate(across(where(is.numeric), printnum)) %>% 
+     kable(booktabs = T,
+           longtable = T,
+           format = "latex",
+            col.names = c("Group", "CNI", "SE", "Lower", "Upper"),
+        caption = paste0("Expected CNI by ",  title_cap({{cat_var}}), ".")) %>% #
+   kable_styling(latex_options = c("repeat_header", "longtable")) %>% 
+   {reduce(seq_along(group_names), 
+           .init = ., 
+           ~ group_rows(.x, group_names[.y], n_distinct(full_df$modtr_score)*(.y-1)+1, n_distinct(full_df$modtr_score)*.y))} %>% 
+  column_spec(1, width = "7.2cm") %>% 
+    add_header_above(c(" " = 3, "95% CI" = 2))
+}
+```
+
+```{r walk-emtrends-cni.catMod_effects, results = 'asis', echo=FALSE, eval=TRUE}
+#| cache: true
+#Define the categorical moderators
+cat_mod_names <- c("family_home", "mother_edu", "father_edu", "age_group")
+
+# Use walk to iterate over the categorical moderators
+walk(cat_mod_names, function(var) {
+  result <- cat_emtrends_tbl(var)
+  print(result)
+  cat("\n\n")  # Add some space between tables
+})
+```
+
+```{r emtrends-cni.catMod-emtrends_plot}
+cat_emtrends_plot <- \(cat_var){
+  
+   xtitle <- function(s){
+     s %>%
+    str_replace_all("_", " ") %>%
+    str_to_sentence() %>%
+    str_replace("edu", "Education")}
+  
+plot_data <-  rbind(
+ mindsetCNI.CatMod_effects_trends %>% 
+       pluck(cat_var, "emtrends") %>% 
+      as_tibble() %>% 
+      mutate(CNI_type = "mindsetCNI.cat_effects", 
+             .before = modtr_score), 
+    map_df(all_cni.catMod_effects, 
+      ~as_tibble(summary(pluck(.x, cat_var, "trends", "emtrends"))),
+                 .id = "CNI_type")) %>% 
+     mutate(CNI_type = case_when(
+        CNI_type == "mindsetCNI.cat_effects" ~ "Mindset CNI",
+    CNI_type == "ismCNI.cat_effects" ~ "Isms-Mindset CNI",
+    CNI_type == "globeCNI.cat_effects" ~ "Globe-Mindset CNI",
+    CNI_type == "globeExCNI.cat_effects" ~ "Globe Extra-Mindset CNI",
+    CNI_type == "fantcCNI.cat_effects" ~ "Fanaticism-Mindset CNI",
+    CNI_type == "mfCNI.cat_effects" ~ "Moral Foundations-Mindset CNI",
+    CNI_type == "socAxCNI.cat_effects" ~ "Social Axioms-Mindset CNI",
+    CNI_type == "pty6CNI.cat_effects" ~ "Personality6 CNI",
+    TRUE ~ CNI_type  # keep original if no match
+  ))
+
+# Create the plot
+ggplot(plot_data, aes(x = modtr_score, y = z_ctry_response.trend, fill = modtr_score)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  geom_errorbar(aes(ymin = asymp.LCL, ymax = asymp.UCL), 
+                width = 0.2, position = position_dodge(0.9)) +
+  scale_y_continuous(limits = c(0, 1), expand = c(0, 0)) +
+   coord_flip()+
+  facet_wrap(~ CNI_type, ncol = 2) +
+  labs(x = xtitle({{cat_var}}), 
+       y = "Estimated Marginal Trend",
+      fill = "Levels") +
+  theme_bw() +
+  theme(legend.position = "bottom",
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank()) +
+  scale_fill_brewer(palette = "Set3")
+
+}
+
+cat_emtrends_plot_details <- tibble(
+        cat_mod = c("family_home", "mother_edu", "father_edu", "age_group")) %>% 
+ mutate(cat_mod = map_chr(cat_mod, function(x) {
+   x %>%
+    str_replace_all("_", " ") %>%
+    str_to_sentence() %>%
+    str_replace("edu", "Education")}),
+  caption = paste0("Expected CNI by ", cat_mod))
+```
+
+```{r walk-emtrends-cni.catMod-emtrends_plot, results = 'asis', echo=FALSE, eval=TRUE}
+#| cache: true
+#| fig-height: 12
+#| fig-width: 10
+#| out-width: "100%"
+#| cap-location: bottom
+#| fig-cap: !expr |
+#|   cat_emtrends_plot_details %>%
+#|     pull(caption)
+
+cat_mod_names <- c("family_home", "mother_edu", "father_edu", "age_group")
+
+# Use walk to iterate over the categorical moderators
+walk(cat_mod_names, function(var) {
+  result <- cat_emtrends_plot(var)
+  print(result)
+  cat("\n\n")  # Add some space between tables
+})
+```
+
+#### Contrasts
+
+```{r fun.-sig_groups2}
 sig_groups2 <- function(CNI.cat_effects, var, cni_name, sig.only = FALSE) {
    # Extract the part of cni_name before the first period
   cni_name_cap <- str_extract(cni_name, "^[^.]+")
@@ -2543,25 +3165,22 @@ sig_groups2 <- function(CNI.cat_effects, var, cni_name, sig.only = FALSE) {
     str_to_title()
   
   trends <- CNI.cat_effects %>% 
-    #all_cni.catMod_effects %>% 
     pluck(cni_name,var, "trends", "contrasts") %>% 
-    #pluck("ismCNI.cat_effects" , "age_group", "trends", "contrasts")
+
     as.data.frame()
 
-  cap <-paste0("Significant differences in ", cni_name_cap, " by ", var_name_cap, ".")
-  
-  
-  if (sig.only) {
+if (sig.only) {
     trends <- filter(trends, p.value < .05)
-    cap <-paste0("Significant differences in ", cni_name_cap, " by ", var_name_cap, ".")
+    cap <- paste0("Significant differences in ", cni_name_cap, " by ", var_name_cap, ".")
+  } else {
+    cap <- paste0("Differences in ", cni_name_cap, " by ", var_name_cap, ".")
   }
   
   if (nrow(trends) > 0) {
     trends %>% 
       mutate(
         p.value = papaja::printp(p.value),
-        across(where(is.numeric), printnum)
-      ) %>% 
+        across(where(is.numeric), printnum)) %>% 
       select(-df) %>% 
       kable(booktabs = T,
             caption = cap,
@@ -2569,24 +3188,55 @@ sig_groups2 <- function(CNI.cat_effects, var, cni_name, sig.only = FALSE) {
             format = "latex",
              col.names = c("Contrast", "Est", "SE", "Z", "p")) %>% 
       kable_styling(latex_options = c("repeat_header")) %>% 
-      column_spec(1, width = "5cm")
+      column_spec(1, width = "7.2cm")
   }
 }
 
 ```
 
-
-```{r cni.catMod_effects_tables, results = 'asis'}
+```{r cni.catMod_effects_tables, results = 'asis', echo=FALSE, eval=TRUE}
 # categorical moderators
-var_names <- c("family_home", "mother_edu", "father_edu", "age_group")
+cat_mod_names  <- c("family_home", "mother_edu", "father_edu", "age_group")
 
 # CNI names (adjust this list according to your needs)
 cni_names <- names(all_cni.catMod_effects)
 
-# Iterate over both cni_names and var_names
+# Iterate over both cni_names and cat_mod_names 
 walk(cni_names, function(cni) {
-  walk(var_names, function(var) {
+  walk(cat_mod_names , function(var) {
     result <- sig_groups2(all_cni.catMod_effects, var, cni)
+    if (!is.null(result)) {
+      print(result)
+      cat("\n\n")  # Add some space between tables
+    }
+  })
+})
+```
+
+## Tables - Contrasts( _p_ < .05)
+
+```{r sig-only.catMod-trends-plots, results='asis', echo=FALSE, eval=TRUE}
+#| cache: true
+# Moderator names
+cat_mod_names <- c("family_home",  "mother_edu", "father_edu", "age_group") #"sex",
+
+#--Mindset CNI--#
+# Print all the tables
+walk(cat_mod_names, function(var) {
+  cat("\n\n")
+  print(sig_groups1(mindsetCNI.CatMod_effects_trends, var, "Mindset CNI", sig.only = TRUE))
+  cat("\n\n")
+})
+
+#--others CNI's--#
+
+# CNI names (adjust this list according to your needs)
+cni_names <- names(all_cni.catMod_effects)
+
+# Iterate over both cni_names and cat_mod_names 
+walk(cni_names, function(cni) {
+  walk(cat_mod_names , function(var) {
+    result <- sig_groups2(all_cni.catMod_effects, var, cni, sig.only = TRUE)
     if (!is.null(result)) {
       print(result)
       cat("\n\n")  # Add some space between tables
