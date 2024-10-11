@@ -771,6 +771,20 @@ cni_plot_details %>%
 
 
 ```{r DONT-RUN-create-tbl-cni-mods, echo = T, eval = F}
+
+
+# Function to calculate average number of observations per participant
+#avg.obs_per_participant <- \(model) {
+  s <- summary(model)
+  tibble(
+    total_obs = s$devcomp$dims["N"], # Total number of observations
+    total_participants = s$ngrps["pID:country"] # Total number of participants (pID:country)
+  ) %>%
+    mutate(avg_obs_per_participant = total_obs / total_participants) %>%
+    select(avg_obs_per_participant) %>% 
+    pull(avg_obs_per_participant)
+}
+
 options(modelsummary_get = "easystats")
 CNImods_table1 <- modelsummary(
   list("Mindset" = mindsetCNI_mod,
@@ -867,7 +881,38 @@ all_mods_ctry.trends %>%
   group_rows("Personality6 CNI", 8*4+1, 8*5) %>% 
   group_rows("Personality7", 8*5+1, 8*6) %>% 
   column_spec(1, width = "5cm")
+  
 ```
+
+```{r tbl-ctry-CNI_ci.range, results='asis', echo=F, eval=T}
+#| label: tbl-ctry-CNI_ci.range
+#| tbl-cap: "Confidence Interval Range across CNI types"
+
+all_mods_ctry.trends %>% 
+  tibble() %>% 
+  select(model, country, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(range_CI = round(conf.high - conf.low, 4), 
+   model = str_extract(model, "^[^_]+")) %>% 
+  mutate(model = case_when(
+    model == "mindsetCNI" ~ "Mindset CNI",
+    model == "pty6CNI" ~ "Personality 6 CNI",
+    model == "pty7CNI" ~ "Personality 7 CNI",
+    model == "ismCNI" ~ "Isms-Mindset CNI",
+    model == "fantcCNI" ~ "Fanaticism-Mindset CNI",
+    model == "globeCNI" ~ "Globe-Mindset CNI",
+    TRUE ~ model
+  )) %>% 
+  select(model, range_CI) %>% 
+  distinct() %>% 
+  arrange(desc(range_CI)) %>% 
+   kable(booktabs = T, 
+        escape = F,
+        format = "latex",
+        longtable = TRUE,
+        col.names = c("Model",  "CI Range")) %>% 
+  kable_styling(latex_options = c("repeat_header", "longtable"))
+```
+
 
 ```{r fun.-oneCoef-plot, echo = F, eval = F}
 #One coefficient plot at a time!
@@ -1843,7 +1888,7 @@ cni.pty_effects_plot <- function(data, association_type) {
          fill = "Trait", alpha = "Level") +
     theme_bw() +
     theme(legend.position = "bottom", 
-          text = element_text(family = "serif", size = 12)) +
+          text = element_text(family = "serif", size = 14)) +
     coord_flip() +
     guides(fill = "none")  
 }
@@ -1930,8 +1975,7 @@ cni.mindset_effects_plot <- function(data, association_type) {
          fill = "Trait", alpha = "Level") +
     theme_bw() +
     theme(legend.position = "bottom",
-          text = element_text(family = "serif", size = 13),
-                   axis.text.y = element_text(size = 13.2)) +
+          text = element_text(family = "serif", size = 14)) +
     coord_flip()
 }
 
@@ -2086,21 +2130,20 @@ cni.ContMod_tbl_details %>%
 ### Five Strongest moderators
 
 ```{r five-strongest-moderators}
+#| cache: true
 cni_types <- unique(sub("CNI.*", "CNI", names(cni.ContMod_tables)))
 
-# Function to combine dataframes for a given CNI type
-#data_list = cni.ContMod_tables
 strongest5_contMods <- function(cni_type, data_list) {
   df_names <- grep(paste0("^", cni_type),
                    names(data_list), value = TRUE)
   
   bind_rows(data_list[df_names], .id = "modtr_type") %>%
     arrange(desc(abs(estimate))) %>%
+    filter(p.value <.05) %>% 
     slice_head(n = 5)
 }
 
 # Apply the function to each CNI type
-
 strongest5_contMods_CNI <- map_dfr(cni_types, ~strongest5_contMods(.x, cni.ContMod_tables)) %>%
   specify_var_names() %>% 
   with_groups(modtr, ~ mutate(.x, avg_abs_estimate = mean(abs(estimate)))) %>% 
@@ -2131,7 +2174,9 @@ color_mapping <- strongest5_contMods_CNI %>%
   deframe()
 ```
 
-```{r results='asis'}
+
+```{r fig-five-strongest-moderators, results='asis'}
+#| cache: true
 #| fig-height: 7
 #| fig-width: 10
 #| out-width: "100%"
@@ -2154,8 +2199,91 @@ strongest5_contMods_CNI %>%
       axis.text.y = element_markdown(
       color = color_mapping[levels(strongest5_contMods_CNI$modtr)],
       size = 13),
-      plot.caption = element_markdown(hjust =1.74, size = 8.3) )
+      plot.caption = element_markdown(hjust =1.4, size = 8.3) )
 ```
+
+
+
+```{r tbl-five-strongest-moderators, results='asis'}
+#| tbl-cap: "Five Strongest Estimates across CNI types"
+#| cache: true
+
+final_table <- map_dfr(cni_types, ~strongest5_contMods(.x, cni.ContMod_tables)) %>%
+  specify_var_names() %>% 
+  with_groups(modtr, ~ mutate(.x, avg_abs_estimate = mean(abs(estimate)))) %>% 
+  mutate(modtr = fct_reorder(modtr, avg_abs_estimate, .desc = FALSE)) %>% 
+  
+  specify_var_names() %>% 
+  separate(modtr_type, c("CNI_type", "Moderator_type"), sep = "\\.") %>%
+  mutate(
+    CNI_type = str_remove(CNI_type, "CNI"),
+    CNI_type = str_to_sentence(CNI_type),
+    CNI_type = str_replace_all(CNI_type, c( 
+      "cni" = " CNI",
+      "Ism" = "Isms",
+      "Fantc" = "Fanaticism",
+      "Globe" = "GLOBE", 
+      "Pty6" = "Personality 6",
+      "Pty7" = "Personality 7")),
+    Moderator_type = if_else(Moderator_type == "pty7", "Personality", "Mindset"),
+    p.value = map_chr(p.value, papaja::printp),
+    across(where(is.numeric), ~ round(., 3)),
+    ci = paste0("[", conf.low, ", ", conf.high,"]"),
+    term = ifelse(str_detect(term, "2"), "(b\\textsuperscript{2})", "(b)"),
+    estimate = as.character(estimate),
+    modtr = paste0(modtr, " (", Moderator_type, ")"),
+    modtr = ifelse(level == "Country", 
+                   paste0(modtr, footnote_marker_symbol(1, "latex")),
+                   paste0(modtr, footnote_marker_symbol(2, "latex"))),
+    CNI_type = str_replace(CNI_type, "CNI", "")) %>% 
+  select(CNI_type, modtr, term, estimate, ci, p.value) 
+
+final_table %>% 
+  kable(booktabs = T, 
+        escape = F,
+        format = "latex",
+        col.names = c("CNI type", "Moderator", "Term", "Est", "95\\% CI", "$\\textit{p}$"),
+        longtable = T,
+         align = c('l', 'r', 'c', 'c', 'c', 'c')) %>% 
+  kable_styling(latex_options = c("repeat_header")) %>% 
+  collapse_rows(columns = 1, latex_hline = "linespace") %>%
+  footnote(symbol = c("Country", "Individual"),
+           symbol_title = "",
+           general = "(b) = Linear model, (b\\textsuperscript{2}) = Quadratic",
+           general_title = "Note:",
+           title_format = "italic", 
+           fixed_small_size = TRUE,
+           footnote_as_chunk = FALSE,
+           threeparttable = TRUE)
+```
+
+
+
+```{r Agreeableness, eval=FALSE, echo=FALSE, include=FALSE}
+# Agreeableness = scP_Agree.comm
+# Assertiveness = scM_globe_asrt.comm
+
+#mindsetCNI.agr
+mindsetCNI.assrt <- data1 %>% 
+  select(pID, matches("scM_globe_asrt.comm")) %>% 
+  #mean centering the moderator score cols
+  #since this standardization is col-wise, running pty7 is not an issue
+   mutate_if(is.numeric, 
+             ~. - mean(., na.rm = T)) %>% 
+  pivot_longer(-pID, 
+                names_to = "modtr", #moderator name
+                values_to = "modtr_score") %>% # moderator score
+  full_join(mindsetCNI_profiles$self.ctry_profiles, by = c("pID"), relationship = "many-to-many") %>% 
+  lmer(z_response ~ z_ctry_response * modtr_score + z_ctry_response * I(modtr_score^2) + (-1 + z_ctry_response | pID), data = .)
+
+  plot_model(mindsetCNI.assrt, type = "pred", terms = c("z_ctry_response[all]", "modtr_score [meansd]")) +
+theme_bw() #+
+    # labs(x = "CNI", y = "SWB")+
+    # theme(plot.title = element_blank())
+
+
+```
+
 
 
 # RQ3.1: CNI~well-being
@@ -2191,7 +2319,8 @@ save(cni.swbMod_tables,
 load(here("objects/Study1/cni.swbMod_tables.Rdata"))
 ```
 
-```{r table-cni.swb_effects}
+```{r table-cni.swb_effects, echo=FALSE}
+#| cache: true
 cni.swbMod_tables %>%
   imap(~mutate(.x, cni_type = .y, .before = level)) %>%
   list_rbind() %>% 
@@ -2274,6 +2403,7 @@ scale_fill_manual(values = c(
 #| fig-width: 10
 #| out-width: "100%"
 #| fig-cap: "CNI predicted by Subjective Well-being"
+#| cache: true
  cni.swbMod_tables %>% 
   #add the tbl_name (model name) = cni_type as a col 
   imap(~mutate(.x, cni_type = .y, .before = level)) %>%
@@ -2292,6 +2422,7 @@ In order to use SWB as an outcome variable we need to establish the measurement 
 ## Measurement Invariance Analysis - SWB
 
 ```{r MeasurementInvariance-processing}
+#| cache: true
 swb_MI.data <- data1 %>% 
   #swb items have been rescaled to a range of 1 to 5
   dplyr::select(starts_with("swb"), country)
@@ -2409,10 +2540,10 @@ MI_table <- map_df(list(summary_config, summary_metric, summary_scalar, summary_
 
 ```
 
-```{r MeasurementInvariance_Table}
+```{r MeasurementInvariance_Table, echo=FALSE}
 #| label: tbl-MeasureMentInvariance
 #| tbl-cap: "Measurement Invariance metrics for Subjective Well-being"
-
+#| cache: true
 options(knitr.kable.NA = '')
 
 MI_table %>% 
@@ -2494,6 +2625,7 @@ load(here("objects/Study1/swb.cni_mods_heterosk.Rdata"))
 ```
 
 ```{r fun.-tbl-swb.cni_heteroskt}
+#| cache: true
 make_swb.cni_heterosk_tbl <- \(mod_name) {
   list(
     model = mod_name,
@@ -2510,9 +2642,9 @@ swb.cni_heterosk_tbl <- map_dfr(convert_to_char(mindsetCNI_mod, ismCNI_mod, glob
 ```
 
 ```{r tbl-swb.cni_heteroskt}
-#|label: tbl-swb.cni_heteroskt
-#|tbl-cap: "Heteroscedasticity of SWB across CNI types"
-
+#| label: tbl-swb.cni_heteroskt
+#| tbl-cap: "Heteroscedasticity of SWB across CNI types"
+#| cache: true
 swb.cni_heterosk_tbl %>% 
   mutate(model=str_extract(model, "^[^CNI]+")) %>% 
   kable(booktabs = T,
@@ -2611,7 +2743,7 @@ all_swb.cni_mods <- map(
 
 ```{r swb.cni-tbl, results='asis', echo=FALSE, eval=TRUE}
 #| tbl-cap: "Prediciting SWB from CNI"
-
+#| cache: true
 swb.cni_results <- map_depth(all_swb.cni_mods, .depth = 2, tidy) %>% 
 map(., bind_rows, .id = "model") %>%
   map_dfr(bind_rows, .id = "cni_model") %>%
@@ -2647,7 +2779,7 @@ swb.cni_results %>%
         format = "latex",
         col.names = c("CNI type", "Term", "Linear", "Quadratic"),
         align = c('l', 'c', 'c', 'c')) %>%
-  collapse_rows(columns = 1, latex_hline = "none") %>%
+  collapse_rows(columns = 1, latex_hline = "linespace") %>%
   column_spec(2, width = "3em", latex_column_spec = "c") %>%
   column_spec(3, latex_column_spec = "c") %>%
   #column_spec(4, latex_column_spec = "c") %>%
@@ -2745,7 +2877,6 @@ plot_swb.cni_patch <- \(model){
 #| fig-cap: 
 #|   !expr plot_swb_details %>%
 #|     pull(caption)
-
 #retain models that have mindset moderators
 plot_swb_details %>%
   pull(cni_mod) %>% 
@@ -2829,7 +2960,7 @@ cni.swb_all_models <- map2_dfr(cni_combinations$mod1, cni_combinations$mod2, ~ {
       term == "mod1_obj" ~ .x,
       term == "mod2_obj" ~ .y,
       TRUE ~ term),
-      model = paste("SWB ~ ",.x, "+", .y))
+      model = paste("SWB = ",.x, "+", .y))
   return(model_result)
 }) %>% 
   filter(!str_detect(term, "Intercept")) %>% 
@@ -2857,7 +2988,7 @@ cni.swb_all_models <- map2_dfr(cni_combinations$mod1, cni_combinations$mod2, ~ {
 
 ```{r swb.cni-comparing-models-tbl, results='asis', echo=FALSE}
 #| tbl-cap: "Comparing predictive capacity of CNI"
-
+#| cache: true
 cni.swb_all_models %>% 
   mutate(across(c(chisq, df), printnum)) %>% 
   mutate(p.value = printp(p.value)) %>% 
@@ -2868,7 +2999,7 @@ cni.swb_all_models %>%
         escape = F,
         col.names = c("Model", "Term", "Chisq", "df", "p" )) %>% 
   kable_styling() %>% 
-   collapse_rows(columns = 1, latex_hline = "none")
+   collapse_rows(columns = 1, latex_hline = "linespace")
 ```
 
 ```{r comparing-cni-corr-fig, results='asis', echo=FALSE}

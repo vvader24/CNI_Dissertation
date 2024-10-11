@@ -27,6 +27,7 @@ format:
     include-in-header: 
       text: |
          \usepackage[T1]{fontenc}
+         \usepackage{enumitem}
     documentclass: article
     geometry: margin=1in
     papersize: letter
@@ -38,8 +39,12 @@ format:
 editor: source
 ---
 
+\setlistdepth{6}
+
 ```{r eval=FALSE, echo=FALSE}
 #Notes: For code chunks that have `DONT-RUN` in their labels involve computations that take longer, require parallel processing or higher GPUs. These will be typically followed by code for loading objects that have been saved after running these chunks. 
+
+#       cache-refresh: true
 ```
 
 # Data set up
@@ -55,7 +60,7 @@ options(timeout = max(300, getOption("timeout")))
 pacman::p_load(tidyverse, dplyr, rio, expss, scales, glue,
                rlang, kableExtra, stringr, tibble, psych, here, tools,
                haven, parallel, tictoc, papaja, #wrangling and setup
-               patchwork,gridExtra, ggplot2, grid, ggtext, #plots
+               patchwork,gridExtra, ggplot2, grid, ggtext, ggcorrplot, #plots
                lme4, lmerTest, broom.mixed, tidyr, #modeling - mlm
                emmeans, marginaleffects, modelsummary, 
                pbkrtest, car #model estimates
@@ -223,7 +228,7 @@ scP_Vir.indv = compute_trait_score(.,
  scP_Big2_SocialSelfReg.indv = (compute_trait_score(.,
             paste0("P", c(5,8,9,25,30, 38)), 
             paste0("P", c(6,7,14,19,23))))/10,
- #Social Dynamism
+ #Dynamism
  scP_Big2_Dynamism.indv = (compute_trait_score(.,
             paste0("P", c(10,15,34,36,37, 39, 24)), 
             paste0("P", c(9,28,30,40))))/10,
@@ -778,7 +783,7 @@ ggplot(., aes(x = x_label, y = value, color = metric, group = metric)) +
 
 @fig-plot-heterogeneity indicates that as the item count increases, so does the number of identifiable dimensions, indicating higher model complexity. The Fanaticism CNI, despite having only 17 items, has been included here to maintain consistency with Study 1 and provide a basis for comparison. Notably, the Mindset CNI exhibits a markedly higher complexity, with nearly four times as many dimensions as the other CNI models.
 
-### CNI plots
+### CNI disttibutions
 
 ```{r fun.-plot_CNI, echo=FALSE}
 #Functions
@@ -917,6 +922,57 @@ walk(names(CNIplot_data), \(mod_names) {
   })
 
 ```
+
+### Correlations across CNI types
+
+```{r comparing-cni-corr-fig, results='asis', echo=FALSE}
+#| fig-cap: "Correlations between CNI types"
+#| cache: true
+
+join_with_data <- \(cni_mod){
+mod_name <- deparse(substitute(cni_mod))
+cni_type <- gsub("_mod$", "", mod_name)
+  
+ join_data <- coef(cni_mod)$pID %>%
+    as.data.frame() %>%
+    rownames_to_column("pID") %>%
+    select(-`(Intercept)`) %>% 
+    separate(pID, into = c("pID", "country")) %>% 
+    rename_with(~ cni_type, .cols = z_ctry_response) %>%
+    full_join(data2, by = c("pID", "country")) %>% select(all_of(cni_type), pID, country, contains("sc_swb")) %>% 
+   as_tibble()
+ 
+ return(join_data)
+}
+join_with_data(mindsetCNI_mod)
+
+all_cni_mods <- c("mindsetCNI_mod", "pty6CNI_mod", "ismCNI_mod", "fantcCNI_mod", 
+                "globeCNI_mod", "globeExCNI_mod", "mfCNI_mod", "socAxCNI_mod")
+
+all_combined_data <- map(all_cni_mods, function(mod_name) {
+mod_obj <- get(mod_name, envir = .GlobalEnv)
+ #simulate calling the function with the object name
+ eval(call("join_with_data", as.name(mod_name)))
+}) %>% 
+set_names(names(all_cni_mods)) %>%
+ #combine all the tibbles in the list [map_dfr will append the tibbles increasing the no. of rows; the reduce approach retains the original set of rows by using full_join]
+reduce(full_join, by = c("pID", "country")) %>%
+# Ensure all CNI columns are present (in case of any missing data)
+mutate(across(ends_with("CNI"), ~ if_else(is.na(.), 0, .))) 
+
+all_combined_data %>% 
+  select(contains("CNI")) %>% 
+  cor() %>% 
+  ggcorrplot(., hc.order = FALSE,
+  type = "lower", 
+  outline.col = "white",
+  colors = c("#3633ff", "white", "#c0392b"),
+  lab = TRUE,  # Show correlation coefficients
+   ggtheme = ggplot2::theme_bw,
+  legend.title = "Corr") +
+  theme(text = element_text(family = "serif", size = 11))
+```
+
 
 ## Person level slopes
 
@@ -1060,6 +1116,39 @@ all_mods_ctry.trends %>%
            ~ group_rows(.x, group_names[.y], 27*(.y-1)+1, 27*.y))} %>% 
   column_spec(1, width = "5cm")
 ```
+
+```{r tbl-ctry-CNI_ci.range, results='asis', echo=F, eval=T}
+#| label: tbl-ctry-CNI_ci.range
+#| tbl-cap: "Confidence Interval Range across CNI types"
+
+all_mods_ctry.trends %>% 
+  tibble() %>% 
+  select(model, country, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(range_CI = round(conf.high - conf.low, 4), 
+   model = str_extract(model, "^[^_]+")) %>% 
+  mutate(model = case_when(
+    model == "mindsetCNI" ~ "Mindset CNI",
+    model == "pty6CNI" ~ "Personality 6 CNI",
+    model == "pty7CNI" ~ "Personality 7 CNI",
+    model == "ismCNI" ~ "Isms-Mindset CNI",
+    model == "fantcCNI" ~ "Fanaticism-Mindset CNI",
+    model == "globeCNI" ~ "Globe-Mindset CNI",
+    model == "globeExCNI" ~ "Globe-Extra-Mindset CNI",
+    model == "mfCNI" ~"Moral Foundations-Mindset CNI",
+    model == "socAxCNI" ~ "Social Axioms-Mindset CNI",
+    TRUE ~ model
+  )) %>% 
+  select(model, range_CI) %>% 
+  distinct() %>% 
+  arrange(desc(range_CI)) %>% 
+   kable(booktabs = T, 
+        escape = F,
+        format = "latex",
+        longtable = TRUE,
+        col.names = c("Model",  "CI Range")) %>% 
+  kable_styling(latex_options = c("repeat_header", "longtable"))
+```
+
 
 ```{r fun.-oneCoef-plot, echo = F, eval = F}
 #One coefficient plot at a time!
@@ -1332,7 +1421,7 @@ specify_var_names <- \(data){
       str_detect(modtr, "Vir") ~ "Originality/Virtuosity",
       str_detect(modtr, "Dis") ~ "Disintegration",
       str_detect(modtr, "SocialSelfReg") ~ "Social Self-Regulation",
-     str_detect(modtr, "Dynamism") ~ "Social Dynamism",
+     str_detect(modtr, "Dynamism") ~ "Dynamism",
 
       
       #Mindset
@@ -1452,7 +1541,7 @@ list_rbind(all_cni.contMod_effects, names_to = "model") %>%
   select(-term) %>% 
   kable(booktabs = T, 
         escape = F,
-        format = "html",
+        format = "latex",
         col.names = c(" ", "min", "max", "range", "kurtosis", "skew", "n", "mean", "sd")) %>%  
    group_rows("Linear effects", 1, 2) %>% 
   group_rows("Quadratic effects", 3, 4) 
@@ -1795,77 +1884,7 @@ cni.contMod_tbl_details %>%
   })
 ```
 
-### Five Strongest moderators
 
-```{r five-strongest-moderators}
-cni_types <- unique(sub("CNI.*", "CNI", names(all_cni.contMod_effects)))
-
-# Function to combine dataframes for a given CNI type
-#data_list = all_cni.contMod_effects
-strongest5_contMods <- function(cni_type, data_list) {
-  df_names <- grep(paste0("^", cni_type),
-                   names(data_list), value = TRUE)
-  
-  bind_rows(data_list[df_names], .id = "modtr_type") %>%
-    arrange(desc(abs(estimate))) %>%
-    slice_head(n = 5)
-}
-
-# Apply the function to each CNI type
-strongest5_contMods_CNI <- map_dfr(cni_types, ~strongest5_contMods(.x, all_cni.contMod_effects)) %>%
-  specify_var_names() %>% 
-  with_groups(modtr, ~ mutate(.x, avg_abs_estimate = mean(abs(estimate)))) %>% 
-  mutate(modtr = fct_reorder(modtr, avg_abs_estimate, .desc = FALSE)) %>% 
-  select(-term, -variable)  %>% 
-  mutate(cni_type = str_extract(modtr_type, "^[^.]+")) %>% 
-  mutate(label_color = case_when(
-    str_detect(modtr_type, "\\.pty_effects$") ~ "#c76e00",
-    str_detect(modtr_type, "\\.mindset_effects$") ~ "#008000",
-    TRUE ~ "black"
-  ))
-
-modtr_order <- strongest5_contMods_CNI %>%
-  group_by(modtr) %>%
-  summarize(mean_estimate = mean(estimate)) %>%
-  arrange(mean_estimate) %>%
-  pull(modtr)
-
-
-strongest5_contMods_CNI <- strongest5_contMods_CNI %>%
-  mutate(modtr = factor(modtr, levels = modtr_order))
-
-
-color_mapping <- strongest5_contMods_CNI %>%
-  select(modtr, label_color) %>%
-  distinct() %>%
-  deframe()
-```
-
-```{r results='asis'}
-#| fig-height: 7
-#| fig-width: 10
-#| out-width: "100%"
-#| cap-location: bottom
-#| fig-cap: "Five Strongest Estimates across CNI types"
-
-strongest5_contMods_CNI %>% 
- ggplot(aes(x = modtr, y = estimate, color = cni_type, group = interaction(modtr))) +
-   geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0, alpha = 0.3, size = 3.8, position = position_dodge(width = 0.4), linetype = "solid")+
-   geom_point() + 
-  scale_color_manual(values = c("mindsetCNI" = "#0074B7", "ismCNI"  = "#6082B6", "fantcCNI"  = "#70d6ff", "globeCNI"  = "#a0c4ff", "globeExCNI"  = "#189AB4", "mfCNI"  = "#6495ED", "socAxCNI"  = "#5D3FD3", "pty6CNI" = "#ff70a6")) +
-   labs(x = NULL, 
-        y = "CNI estimate",
-        color = "CNI Types",  
-        caption = "<i>Note:</i> <span style='color:#c76e00;'>Personality </span> and <span style='color:#008000;'>Mindset </span> moderators on Y axis") +
-   coord_flip() +
-   theme_bw() +
-   theme(plot.title.position = "plot", 
-         text = element_text(family = "serif", size = 12),
-      axis.text.y = element_markdown(
-      color = color_mapping[levels(strongest5_contMods_CNI$modtr)],
-      size = 12),
-      plot.caption = element_markdown(hjust =1.74, size = 8.3) )
-```
 
 ```{r}
 #| include: false
@@ -1928,7 +1947,7 @@ final_table <- table %>%
 final_table %>% 
   kable(booktabs = T, 
         escape = F,
-        format = "html",
+        format = "latex",
         col.names = c("CNI type", "Moderator", "Term", "Est", "95\\% CI", "$\\textit{p}$"),
         caption = title,
         longtable = T) %>% 
@@ -2076,7 +2095,7 @@ plot_high.low_pty_effects <- function(data) {
       modtr == "Extraversion" ~ "Big 6",
       modtr == "Originality/Virtuosity" ~ "Big 6",
       modtr == "Social Self-Regulation"~ "Big 2",
-      modtr == "Social Dynamism"~ "Big 2",
+      modtr == "Dynamism"~ "Big 2",
       TRUE ~ "Other"),
       term_type = case_when(
         term == "z_ctry_response:modtr_score" ~ "Linear",
@@ -2173,8 +2192,6 @@ cni.contMod_tbl_details %>%
 #|     mutate(caption = paste0("Overall trends: ", str_extract(caption, "Associations.*"))) %>%
 #|     pull(caption)
 
- 
-
 cni.contMod_tbl_details %>% 
   filter(CNI_type == "Personality") %>%
   pull(object_names) %>%
@@ -2221,7 +2238,7 @@ processed_data <-  data_ass.type %>%
       modtr == "Extraversion" ~ "Big 6",
       modtr == "Originality/Virtuosity" ~ "Big 6",
       modtr == "Social Self-Regulation"~ "Big 2",
-      modtr == "Social Dynamism"~ "Big 2",
+      modtr == "Dynamism"~ "Big 2",
       TRUE ~ "Other"),
     sig = case_when(
       p.value < .05 & estimate > 0 ~ "Pos",
@@ -2417,8 +2434,6 @@ cni.contMod_plot_details <-
       .x %>% mutate(view = NA_character_, association_type = NA_character_)
     }
   }) 
-  
-
 ```
 
 ```{r walk-cni.mindsetContMod-effects-plot, results='asis', echo=FALSE}
@@ -2473,6 +2488,133 @@ cni.contMod_plot_details %>%
     )
     cat("\n\n")
   })
+```
+
+### Five Strongest moderators
+
+```{r five-strongest-moderators}
+cni_types <- unique(sub("CNI.*", "CNI", names(all_cni.contMod_effects)))
+
+strongest5_contMods <- function(cni_type, data_list) {
+  df_names <- grep(paste0("^", cni_type),
+                   names(data_list), value = TRUE)
+  
+  bind_rows(data_list[df_names], .id = "modtr_type") %>%
+    arrange(desc(abs(estimate))) %>%
+    filter(p.value<.05) %>% 
+    slice_head(n = 5)
+}
+
+# Apply the function to each CNI type
+strongest5_contMods_CNI <- 
+  map_dfr(cni_types, ~strongest5_contMods(.x, all_cni.contMod_effects)) %>%
+  specify_var_names() %>% 
+  with_groups(modtr, ~ mutate(.x, avg_abs_estimate = mean(abs(estimate)))) %>%
+  mutate(modtr = fct_reorder(modtr, avg_abs_estimate, .desc = FALSE)) %>% 
+  select(-term, -variable)  %>% 
+  mutate(cni_type = str_extract(modtr_type, "^[^.]+")) %>% 
+  mutate(label_color = case_when(
+    str_detect(modtr_type, "\\.pty_effects$") ~ "#c76e00",
+    str_detect(modtr_type, "\\.mindset_effects$") ~ "#008000",
+    TRUE ~ "black"
+  ))
+
+modtr_order <- strongest5_contMods_CNI %>%
+  group_by(modtr) %>%
+  summarize(mean_estimate = mean(estimate)) %>%
+  arrange(mean_estimate) %>%
+  pull(modtr)
+
+
+strongest5_contMods_CNI <- strongest5_contMods_CNI %>%
+  mutate(modtr = factor(modtr, levels = modtr_order))
+
+
+color_mapping <- strongest5_contMods_CNI %>%
+  select(modtr, label_color) %>%
+  distinct() %>%
+  deframe()
+```
+
+
+```{r tbl-five-strongest-moderators, results='asis'}
+#| tbl-cap: "Five Strongest Estimates across CNI types"
+
+final_table <- 
+  map_dfr(cni_types, ~strongest5_contMods(.x, all_cni.contMod_effects)) %>%
+  specify_var_names() %>% 
+  with_groups(modtr, ~ mutate(.x, avg_abs_estimate = mean(abs(estimate)))) %>%
+  mutate(modtr = fct_reorder(modtr, avg_abs_estimate, .desc = FALSE)) %>% 
+  specify_var_names() %>% 
+  separate(modtr_type, c("CNI_type", "Moderator_type"), sep = "\\.") %>%
+  mutate(
+    CNI_type = str_remove(CNI_type, "CNI"),
+    CNI_type = str_to_sentence(CNI_type),
+    CNI_type = str_replace_all(CNI_type, c( 
+      "cni" = " CNI",
+      "Ism" = "Isms",
+      "Fantc" = "Fanaticism",
+      "Globe" = "GLOBE", 
+      "Pty6" = "Personality 6",
+      "Pty7" = "Personality 7")),
+    Moderator_type = if_else(Moderator_type == "pty7", "Personality", "Mindset"),
+    p.value = map_chr(p.value, papaja::printp),
+    across(where(is.numeric), ~ round(., 3)),
+    ci = paste0("[", conf.low, ", ", conf.high,"]"),
+    term = ifelse(str_detect(term, "2"), "(b\\textsuperscript{2})", "(b)"),
+    estimate = as.character(estimate),
+    modtr = paste0(modtr, " (", Moderator_type, ")"),
+    modtr = ifelse(level == "Country", 
+                   paste0(modtr, footnote_marker_symbol(1, "latex")),
+                   paste0(modtr, footnote_marker_symbol(2, "latex"))),
+    CNI_type = str_replace(CNI_type, "CNI", "")) %>% 
+  select(CNI_type, modtr, term, estimate, ci, p.value) 
+
+final_table %>% 
+  kable(booktabs = T, 
+        escape = F,
+        format = "latex",
+        col.names = c("CNI type", "Moderator", "Term", "Est", "95\\% CI", "$\\textit{p}$"),
+        longtable = T,
+         align = c('l', 'r', 'c', 'c', 'c', 'c')) %>% 
+  kable_styling(latex_options = c("repeat_header")) %>% 
+  collapse_rows(columns = 1, latex_hline = "linespace") %>%
+  footnote(symbol = c("Country", "Individual"),
+           symbol_title = "",
+           general = "(b) = Linear model, (b\\textsuperscript{2}) = Quadratic",
+           general_title = "Note:",
+           title_format = "italic", 
+           fixed_small_size = TRUE,
+           footnote_as_chunk = FALSE,
+           threeparttable = TRUE)
+```
+
+
+```{r fig-five-strongest-moderators, results='asis'}
+#| fig-height: 7
+#| fig-width: 10
+#| out-width: "100%"
+#| cap-location: bottom
+#| fig-cap: "Five Strongest Estimates across CNI types"
+#| cache: true
+
+strongest5_contMods_CNI %>% 
+ ggplot(aes(x = modtr, y = estimate, color = cni_type, group = interaction(modtr))) +
+   geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0, alpha = 0.3, size = 3.8, position = position_dodge(width = 0.4), linetype = "solid")+
+   geom_point() + 
+  scale_color_manual(values = c("mindsetCNI" = "#0074B7", "ismCNI"  = "#6082B6", "fantcCNI"  = "#70d6ff", "globeCNI"  = "#a0c4ff", "globeExCNI"  = "#189AB4", "mfCNI"  = "#6495ED", "socAxCNI"  = "#5D3FD3", "pty6CNI" = "#ff70a6")) +
+   labs(x = NULL, 
+        y = "CNI estimate",
+        color = "CNI Types",  
+        caption = "<i>Note:</i> <span style='color:#c76e00;'>Personality </span> and <span style='color:#008000;'>Mindset </span> moderators on Y axis") +
+   coord_flip() +
+   theme_bw() +
+   theme(plot.title.position = "plot", 
+         text = element_text(family = "serif", size = 12),
+      axis.text.y = element_markdown(
+      color = color_mapping[levels(strongest5_contMods_CNI$modtr)],
+      size = 13),
+      plot.caption = element_markdown(hjust =1.6, size = 8.3) )
 ```
 
 # RQ 3: To what extent is CNI related to person characteristics?
@@ -2650,7 +2792,7 @@ if (sig.only) {
 ```
 
 ```{r mindsetCNI.catMod-trends-tables, results='asis'}
-# Moderator names
+#| cache: true
 cat_mod_names <- c("family_home",  "mother_edu", "father_edu", "age_group") #"sex",
 
 # Print all the tables
@@ -2766,6 +2908,8 @@ save(pty6CNI.cat_effects,
 ```
 
 ```{r load-cni.CatMod-models, echo=F, results='hide'}
+#| cache: true
+
 options(scipen = 999)
 
 # Define a vector of file names
