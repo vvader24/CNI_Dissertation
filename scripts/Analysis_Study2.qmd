@@ -43,8 +43,6 @@ editor: source
 
 ```{r eval=FALSE, echo=FALSE}
 #Notes: For code chunks that have `DONT-RUN` in their labels involve computations that take longer, require parallel processing or higher GPUs. These will be typically followed by code for loading objects that have been saved after running these chunks. 
-
-#       cache-refresh: true
 ```
 
 # Data set up

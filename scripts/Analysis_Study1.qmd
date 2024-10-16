@@ -460,7 +460,6 @@ ismCNI_items <- get_item_names("Isms", all_vars_d)
 fantcCNI_items <- get_item_names("Fanaticism", all_vars_d)
 globeCNI_items <- get_item_names("Globe", all_vars_d)
 
-
 #compute pofiles for each CNI type
 mindsetCNI_profiles <- compute_profiles(mindsetCNI_items)
 pty6CNI_profiles <- compute_profiles(pty6CNI_items)
@@ -881,7 +880,6 @@ all_mods_ctry.trends %>%
   group_rows("Personality6 CNI", 8*4+1, 8*5) %>% 
   group_rows("Personality7", 8*5+1, 8*6) %>% 
   column_spec(1, width = "5cm")
-  
 ```
 
 ```{r tbl-ctry-CNI_ci.range, results='asis', echo=F, eval=T}
@@ -1148,8 +1146,8 @@ specify_var_names <- \(data){
       str_detect(modtr, "globe_po") ~ "Power distance",
       str_detect(modtr, "globe_fu") ~ "Future orientation",
       str_detect(modtr, "fntc\\.") ~ "Fanaticism",
-      str_detect(modtr, "fntcYug") ~ "Extremism - Yugoslavia",
-      str_detect(modtr, "fntcIslam") ~ "Extremism - Islam",
+      str_detect(modtr, "fntcYug") ~ "Balkan-based Extrm",
+      str_detect(modtr, "fntcIslam") ~ "Islam-based Extrm",
       str_detect(modtr, "fntcPan") ~ "Extremism - pan-cultural",
       str_detect(modtr, "fntc_dp") ~ "Divine Power",
       str_detect(modtr, "fntc_pv") ~ "Proviolence",
@@ -2568,9 +2566,6 @@ Measurement invariance was assessed (@tbl-MeasureMentInvariance) for testing cro
 
 In summary, the SWB scale demonstrates partial support for configural and metric invariance across the eight nations, and there is evidence of non-invariance at scalar, and strict levels. These results suggest that while the basic structure of the scale could be similar across cultures, there may be differences in the strength of item-factor relationships, item intercepts, and item residuals across nations. Given the established complexity of SWB across cultures, we suggest that the readers approach the use of this construct with caution. 
 
-
-
-
 ## Test for heteroskedasticity:
 To test if the levels of SWB vary unequally across the range of CNI (homoscedasticity), White's test for heteroskedasticity is computed.
 
@@ -2582,7 +2577,14 @@ White's Test for Heteroscedasticity: This test assesses whether the variance of 
 White's test is a more general form of the Breusch-Pagan test. While Breusch-Pagan assumes heteroscedasticity is a linear function of the independent variables, White's test allows for non-linear forms.
 
 ```{r DONT-RUN-swb.cni_mods_heterosk, echo = T, eval = F}
- library(whitestrap)
+ 
+
+pty5CNI_mod <- mindsetCNI_profiles$self.ctry_profiles %>% 
+  full_join(mindsetCNI_profiles$overallM_profiles, by = "item") %>% add_CNIformula(.)
+
+
+
+library(whitestrap)
 
 compute_heterosk_swb.cni <- \(cni_mod){
   
@@ -3031,4 +3033,43 @@ all_combined_data %>%
 ```
 
 
+# Auxiliary Question
+This question brought forth the possibility of an overlap between the Big Six affecting the relationship between CNI and well-being. The correlation effects were small indicating that there is low overlap between Personality-CNI variables and predictors such as well-being affect the observed results.
+
+```{r results='asis', echo=FALSE, eval=TRUE}
+#| label: tbl-swbcor
+#| tbl-cap: "Correlation between Subjective Well-being and Big Six and Disintegration"
+#| cache: true
+options(knitr.kable.NA = '')
+
+data1 %>% 
+  select(starts_with("scP_") & ends_with(".indv"), sc_swb.indv) %>% 
+  cor() %>% 
+  as_tibble(rownames = "variable") %>%
+  select(variable, sc_swb.indv) %>%
+  rename(correlation = sc_swb.indv) %>%
+  mutate(
+    abs_correlation = abs(correlation),
+    correlation = round(correlation, 2)
+  ) %>%
+  arrange(desc(abs_correlation)) %>%
+  select(-abs_correlation) %>%
+  filter(variable != "sc_swb.indv") %>%
+  mutate(
+    variable = case_when(
+      str_detect(variable, "Extra") ~ "Extraversion",
+      str_detect(variable, "Agree") ~ "Agreeableness",
+      str_detect(variable, "Consc") ~ "Conscientiousness",
+      str_detect(variable, "Hon") ~ "Honesty",
+      str_detect(variable, "Res") ~ "Resiliency",
+      str_detect(variable, "Dis") ~ "Disintegration",
+      str_detect(variable, "Vir") ~ "Virtuosity/Openness",
+      TRUE ~ variable)) %>% 
+  kable(booktabs = T,
+        escape = F,
+        format = "latex",
+        col.names = c("Variable", "Cor with SWB")) %>%
+  kable_styling() %>%  
+  add_footnote("Note: Correlation between scale scores for Big Six and Subjective Well-being at the individual level", notation = "none")
+```
 
