@@ -26,7 +26,7 @@ This study proposes the deviation from the normative profile as a way to compute
 The (dis)similarity from the normative has important implications for cross cultural research
 
 <p align="center">
-  <img width="400" height="300" alt="image" src="https://github.com/user-attachments/assets/3b4f431e-cee1-4675-a30d-0d13a5e3ee78" />
+  <img width="400" height="250" alt="image" src="https://github.com/user-attachments/assets/3b4f431e-cee1-4675-a30d-0d13a5e3ee78" />
 </p>
 
 
