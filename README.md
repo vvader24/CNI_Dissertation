@@ -1,4 +1,4 @@
-Cultural Normativity Index:A Profile Similarity Approach
+**Cultural Normativity Index:A Profile Similarity Approach**
 
 Academic Abstract:
 Cultures are marked by a sharedness – similarity in beliefs, values, moral codes, patterns
@@ -19,6 +19,7 @@ Change, Self-Transcendence). Majority of the strongest associations were observe
 country-level. In Study 2, CNI was also found to be associated with place of family homes (urban
 vs. rural), mother’s and father’s education, and age. Furthermore, differences across CNI-types
 with respect to the varied associations with measures are discussed.
+
 Keywords: cultural normativity; well-being; mindset; personality
 
 Overview:
