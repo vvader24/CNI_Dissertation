@@ -1,4 +1,4 @@
-Cultural Normativity Index: A Profile Similarity Approach
+Cultural Normativity Index, A Profile Similarity Approach
 
 Academic Abstract:
 Cultures are marked by a sharedness – similarity in beliefs, values, moral codes, patterns
@@ -24,4 +24,6 @@ Keywords: cultural normativity; well-being; mindset; personality
 Overview:
 This study proposes the deviation from the normative profile as a way to compute a cultural normativity index that can be further used to model cultural differences between populations. 
 The (dis)similarity from the normative has important implications for cross cultural research
-<img width="261" alt="image" src="https://github.com/user-attachments/assets/3b4f431e-cee1-4675-a30d-0d13a5e3ee78" />
+
+
+<img width="400" height="300" alt="image" src="https://github.com/user-attachments/assets/3b4f431e-cee1-4675-a30d-0d13a5e3ee78" />
